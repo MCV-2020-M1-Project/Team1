@@ -8,11 +8,7 @@ import numpy as np
 import pandas as pd
 import argparse
 import time
-<<<<<<< HEAD
-
-=======
 from evaluation import evaluate_mask
->>>>>>> 630251f2737953ce8945ec75a3ffadb08e85864d
 
 def evaluate_mask_retriever(query_db_path: str, retriever: str, *, output: str = None):
     """
@@ -50,21 +46,10 @@ def evaluate_mask_retriever(query_db_path: str, retriever: str, *, output: str =
     
     # We generate the masks and compare it with the GT mask, computing several metrics
     generated_masks = [extract_mask(images[i], retriever) for i in range(db_count)]
-<<<<<<< HEAD
-    data = [(i, ) + evaluate_mask(generated_masks[i], masks[i]) for i in range(db_count)]
-=======
->>>>>>> 630251f2737953ce8945ec75a3ffadb08e85864d
     if output is not None:
         # we save all generated masks
         for i in range(db_count):
             cv2.imwrite(os.path.join(output, f"{i:05d}.png"), generated_masks[i] * 255)
-<<<<<<< HEAD
-    results = pd.DataFrame(data=data, columns=("index", "precision", "recall", "f1", "tp", "fp", "fn", "tn"))
-    
-    # We print the average metrics for the whole query dataset.
-    pr, rec, f1 = results["precision"].mean(), results["recall"].mean(), results["f1"].mean()
-    return pr, rec, f1, results
-=======
 
     print(f"[INFO] Masks successfully stored in '{output}'")
     try:
@@ -77,7 +62,6 @@ def evaluate_mask_retriever(query_db_path: str, retriever: str, *, output: str =
         print("[INFO] GT Masks not found => evaluation not performed.")
         return None
     
->>>>>>> 630251f2737953ce8945ec75a3ffadb08e85864d
 
 
 def __extract_biggest_connected_component(mask: np.ndarray) -> np.ndarray:
@@ -297,16 +281,6 @@ if __name__ == '__main__':
 
     print(f"Evaluating with mask retriever >{args.retriever}<...")
     t0 = time.time()
-<<<<<<< HEAD
-    pr, rec, f1, results = evaluate_mask_retriever(args.query, args.retriever, output=args.output)
-    t = time.time()
-
-    print(f"[{t-t0}s] Precision: {pr:.3f}, Recall: {rec:.3f}, F1-Score: {f1:.3f}")
-
-    to_save_path = os.path.join(args.output, "results.csv")
-    results.to_csv(to_save_path, index=False)
-    print(f"Results successfully saved in '{to_save_path}'")
-=======
     result = evaluate_mask_retriever(args.query, args.retriever, output=args.output)
     t = time.time()
     if result is not None:
@@ -317,4 +291,3 @@ if __name__ == '__main__':
         to_save_path = os.path.join(args.output, "results.csv")
         results.to_csv(to_save_path, index=False)
         print(f"Results successfully saved in '{to_save_path}'")
->>>>>>> 630251f2737953ce8945ec75a3ffadb08e85864d
