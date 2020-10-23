@@ -291,11 +291,14 @@ if __name__ == '__main__':
     map_k = mapk(ground_truth, result_list_of_lists, k=k)
     print(f'map@{k} for the current run is {map_k}')
 
+    # extra functions for pickling and visualizing results
+    # use -p in cmdline args
     if args.pickle:
         print(f'writing this list to results.pkl \n {result_list_of_lists}')
         with open('result.pkl', 'wb') as f:
             pickle.dump(result_list_of_lists, f)
 
+    # use -v in cmdline args
     if args.plot:
         query_index = 2
         plot_results([query_list[query_index]] + [museum_list[index] for index in result_list_of_lists[query_index]])
