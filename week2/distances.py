@@ -76,6 +76,18 @@ def kl_div(u:np.ndarray, v:np.ndarray) -> float:
     """
     return cv2.compareHist(u, v, cv2.HISTCMP_KL_DIV)
 
+def js_div(u:np.ndarray, v:np.ndarray) -> float:
+    """
+    Compare histograms based on the Jensen-Shannon divergence.
+
+    Args:
+        u: 1D array of type np.float32 containing image descriptors
+        v: 1D array of type np.float32 containing image descriptors
+    
+    Returns : distance between input descriptor vectors
+    """
+    return (cv2.compareHist(u, (u+v)/2, cv2.HISTCMP_KL_DIV)+cv2.compareHist(v, (u+v)/2, cv2.HISTCMP_KL_DIV))/2
+
 def bhattacharyya(u:np.ndarray, v:np.ndarray) -> float:
     """
     Compare histograms based on the Bhattacharya distance
@@ -135,7 +147,8 @@ DISTANCE_MEASURES = {
     "bhattacharyya":bhattacharyya,
     "hellinger":hellinger,
     "chisqr":chisqr,
-    "correl":correl
+    "correl":correl,
+    "js_div":js_div
 }
 
 def compute_distance(u:np.ndarray, v:np.ndarray, metric:str) -> float:
@@ -152,7 +165,8 @@ def compute_distance(u:np.ndarray, v:np.ndarray, metric:str) -> float:
     "bhattacharyya":bhattacharyya,
     "hellinger":hellinger,
     "chisqr":chisqr,
-    "correl":correl
+    "correl":correl,
+    "js_div":js_div
 
     Args:
         u: 1D array of type np.float32 containing normalized image descriptors
