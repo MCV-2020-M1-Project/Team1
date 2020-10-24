@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+from functools import partial
 
 OPENCV_COLOR_SPACES = {
     "RGB": cv2.COLOR_BGR2RGB,
@@ -47,7 +48,6 @@ def gray_historam(image:np.ndarray, bins:int=256, mask:np.ndarray=None) -> np.nd
     hist = cv2.calcHist([gray_image],[0], mask, [bins], [0,256])
     hist = cv2.normalize(hist, hist)
     return hist.flatten()
-
 
 def rgb_histogram_1d(image:np.ndarray, bins:int=256, mask:np.ndarray=None) -> np.ndarray:
     """
@@ -226,6 +226,58 @@ def ycrcb_histogram_3d(image:np.ndarray, bins:int=8, mask:np.ndarray=None) -> np
     hist = cv2.normalize(hist, hist)
     return hist.flatten()
 
+def block_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:int=256, mask:np.ndarray=None, num_blocks:int=1) -> np.ndarray:
+    """
+    Extract descriptors after dividing image in non-overlapping blocks,
+    computing histograms for each block and then concatenating them
+
+    Args:
+        image: (H x W x C) 3D BGR image array of type np.uint8
+        descriptor_func: descriptorf function to extract histogram
+        bins: number of bins to use for histogram
+        mask: check _descriptor(first function in file)
+        num_blocks: number of blocks to divide images into
+
+    Returns:
+        Histogram features flattened into a 
+        1D array of type np.float32
+    """
+    h,w = image.shape[:2]
+    block_h = int(np.ceil(h / num_blocks))
+    block_w = int(np.ceil(w / num_blocks))
+    features = []
+    for i in range(0, h, block_h):
+        for j in range(0, w, block_w):
+            image_block = image[i:i+block_h, j:j+block_w]
+            if mask is not None:
+                mask_block = mask[i:i+block_h, j:j+block_w]
+            else:
+                mask_block = None
+            block_feature =  descriptor_func(image=image_block, bins=bins, mask=mask_block)
+            features.extend(block_feature)
+    return np.stack(features).flatten()
+
+def pyramid_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:int=256, mask:np.ndarray=None, max_level:int=1) -> np.ndarray:
+    """
+    Compute block histogram features at different levels
+
+    Args:
+        image: (H x W x C) 3D BGR image array of type np.uint8
+        descriptor_func: descriptorf function to extract histogram
+        bins: number of bins to use for histogram
+        mask: check _descriptor(first function in file)
+        max_level: number of levels to use for histogram generation
+
+    Returns:
+        Histogram features flattened into a 
+        1D array of type np.float32
+    """
+    features = []
+    for level in range(1, max_level+1):
+        num_blocks = 4 ** (level-1)
+        features.extend(block_descriptor(image, descriptor_func, bins, mask, num_blocks))
+    return np.stack(features).flatten()  
+
 DESCRIPTORS = {
     "gray_histogram":gray_historam,
     "rgb_histogram_1d":rgb_histogram_1d,
@@ -235,8 +287,10 @@ DESCRIPTORS = {
     "lab_histogram_1d":lab_histogram_1d,
     "lab_histogram_3d":lab_histogram_3d,
     "ycrcb_histogram_1d":ycrcb_histogram_1d,
-    "ycrcb_histogram_3d":ycrcb_histogram_3d
-}
+    "ycrcb_histogram_3d":ycrcb_histogram_3d,
+    "rgb_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=rgb_histogram_3d, max_level = 1),
+    "lab_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=lab_histogram_3d, max_level = 1)
+    }
 
 def extract_features(image:np.ndarray, descriptor:str, bins:int, mask:np.ndarray=None) -> np.ndarray:
     """
@@ -268,5 +322,5 @@ def extract_features(image:np.ndarray, descriptor:str, bins:int, mask:np.ndarray
 if __name__ == '__main__':
     img = cv2.imread(os.path.join('images','barca.png'))
     print(f'image shape: {img.shape}')
-    for key,bins in zip(DESCRIPTORS,[256,256,8,256,8,256,8,256,8]):
+    for key,bins in zip(DESCRIPTORS,[256,256,8,256,8,256,8,256,8,8,8]):
         print(f'descriptor: {key}, feature_length = {extract_features(img, descriptor=key, bins=bins).shape}')
