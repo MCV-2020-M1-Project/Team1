@@ -1,52 +1,84 @@
-# Week 1
+# Week 2 API Usage
 
-## Description of the task
+## Content Based Image Retrieval
 
-* Create histogram image descriptors for both the museum images and the query sets.
-* Implement similarity measures to compare the images.
-* Implement a retrieval system to get the K top results.
-* Evaluate the results using the MAP@k metric.
-* Background removal of images from QS2.
-* Evaluate the masks and the retrieval system for QS2.
-
-## Evaluating query sets
 Use `fastsearch.py` to get the map@K measure. To check its usage, run:
 
 ```$ python fastsearch.py -h```
 
+````
+$ python fastsearch.py -h
+usage: fastsearch.py [-h] [--pickle] [--plot] [--use_masks]
+                     [--museum_path MUSEUM_PATH] [--query_path QUERY_PATH]
+                     [--descriptor DESCRIPTOR] [--metric METRIC] [--bins BINS]
+                     [--map_k MAP_K]
 
-Call structure (all parameters are compulsory):
+Content Based Image Retrieval
 
-```python fastsearch.py ["--museum_path MUSEUM_PATH] [--query_path QUERY_PATH] [--descriptor DESCRIPTOR] [--metric METRIC] [--bins BINS] [--map_k MAP_K]```
-
-### Dataset-related parameters
-1. `MUSEUM_PATH` is the path to reference museum dataset
-2. `QUERY_PATH` is the path to query museum dataset
-
-### Method-related parameters: 
-1. `DESCRIPTOR` Use one of the available histogram retrieving methods:
-
-        {gray_historam, rgb_histogram_1d, rgb_histogram_3d, hsv_histogram_1d, hsv_histogram_3d, lab_histogram_1d, lab_histogram_3d, ycrcb_histogram_1d, ycrcb_histogram_3d}
-2. `METRIC` Use one of the available similarity measures:
-
-        {cosine, manhattan, euclidean, intersect, kl_div, bhattacharyya, hellinger, chisqr, correl}
-3. `BINS` Number of bins to use for the histograms
-4. `MAP_K` Number of results (K) to use for MAP@K
+optional arguments:
+  -h, --help            show this help message and exit
+  --pickle, -p          Generate pickle file with results
+  --plot, -v            show retrieval results for a random query image
+  --use_masks           whether to use masks for histogram generation or not.
+                        Using masks helps us improve our features by extract
+                        the painting(foreground) from the background and also
+                        removing any text present on the painting
+  --museum_path MUSEUM_PATH, -r MUSEUM_PATH
+                        path to reference museum dataset. Example input:
+                        'data/BBDD'
+  --query_path QUERY_PATH, -q QUERY_PATH
+                        path to query museum dataset. Example input:
+                        'data/qsd1_w1'
+  --descriptor DESCRIPTOR, -d DESCRIPTOR
+                        descriptor for extracting features from image.
+                        DESCRIPTORS AVAILABLE: 1D and 3D Histograms -
+                        gray_historam, rgb_histogram_1d, rgb_histogram_3d,
+                        hsv_histogram_1d, hsv_histogram_3d, lab_histogram_1d,
+                        lab_histogram_3d, ycrcb_histogram_1d,
+                        ycrcb_histogram_3d. Block and Pyramidal Histograms -
+                        lab_histogram_3d_pyramid and more. lab_histogram_3d
+                        gives us the best results.
+  --metric METRIC, -m METRIC
+                        similarity measure to compare images. METRICS
+                        AVAILABLE: cosine, manhattan, euclidean, intersect,
+                        kl_div, js_div bhattacharyya, hellinger, chisqr,
+                        correl. hellinger and js_div give the best results.
+  --bins BINS, -b BINS  number of bins to use for histograms
+  --map_k MAP_K, -k MAP_K
+                        Mean average precision of top-K results
+````
 
 
 ## Background removal
-Masks are generated and evaluated (if ground truth is available) by using the script `masks.py`, located in the `root/week1` folder. To check its usage, run:
+Masks are generated and evaluated (if ground truth is available) by using the script `masks.py`. To check its usage, run:
 
 ```$ python masks.py -h```
 
-Call structure: 
+````
+$ python masks.py -h
+usage: masks.py [-h] [--query QUERY]
+                [--retriever {color_mono,color_multi_rgb,color_multi_hsv,color_multi_sv,color_multi_lab,color_multi_ycbcr,color_multi_xyz,edges}]
+                [--output OUTPUT]
 
-```python masks.py [--query QUERY] [--retriever RETRIEVER] [--output OUTPUT]```
+Generates, evaluates and stores (optional, see --output) masks generated from
+the given query dataset.
 
-Where all parameters are compulsory:
-1. `QUERY` is the path to the query dataset
-2.  `RETRIEVER` is the background removal strategy to use and must be one of the following options:
+optional arguments:
+  -h, --help            show this help message and exit
+  --query QUERY         Path to query dataset.
+  --retriever {color_mono,color_multi_rgb,color_multi_hsv,color_multi_sv,color_multi_lab,color_multi_ycbcr,color_multi_xyz,edges}
+                        Mask retriever method to use. Options Available:
+                        color_mono, color_multi_rgb, color_multi_hsv,
+                        color_multi_sv, color_multi_lab, color_multi_ycbcr,
+                        color_multi_xyz, edges
+  --output OUTPUT       Path to folder where generated masks will be stored.
+                        Results are not saved if unspecified.
+````
+## Visualizing Results
 
-        {color_mono, color_multi_rgb, color_multi_hsv, color_multi_sv, color_multi_lab, color_multi_ycbcr, color_multi_xyz, edges}
+Use commandd line argument "-v" to plot the top results for a random query image.
 
-3. `OUTPUT` refers to the folder where the generated masks will be stored (created if does not exist).
+````python fastsearch.py -v````
+
+<br>
+<img src="images/plot_results.png" height=600>
