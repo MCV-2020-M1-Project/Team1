@@ -224,6 +224,12 @@ def parse_args(args=sys.argv[1:]):
         help = "show retrieval results for a random query image")
 
     parser.add_argument(
+        "--use_masks", action="store_true",
+        help = "whether to use masks for histogram generation or not. Using masks helps \
+                us improve our features by extract the painting(foreground) from the \
+                background and also removing any text present on the painting")
+
+    parser.add_argument(
         "--museum_path","-r", default="/home/adityassrana/datatmp/Datasets/museum_dataset/processed/BBDD",
         help = "path to reference museum dataset. Example input: 'data/BBDD'")
 
@@ -233,14 +239,17 @@ def parse_args(args=sys.argv[1:]):
 
     parser.add_argument(
         "--descriptor","-d", default="rgb_histogram_1d",
-        help = "descriptor for extracting features from image. DESCRIPTORS AVAILABLE: \
+        help = "descriptor for extracting features from image. DESCRIPTORS AVAILABLE: 1D and 3D Histograms - \
                 gray_historam, rgb_histogram_1d, rgb_histogram_3d, hsv_histogram_1d, hsv_histogram_3d, lab_histogram_1d,\
-                lab_histogram_3d, ycrcb_histogram_1d, ycrcb_histogram_3d")
+                lab_histogram_3d, ycrcb_histogram_1d, ycrcb_histogram_3d. \
+                Block and Pyramidal Histograms - lab_histogram_3d_pyramid and more.\
+                lab_histogram_3d gives us the best results.")
 
     parser.add_argument(
         "--metric","-m", default="euclidean",
         help = "similarity measure to compare images. METRICS AVAILABLE: \
-                cosine, manhattan, euclidean, intersect, kl_div, bhattacharyya, hellinger, chisqr, correl")
+                cosine, manhattan, euclidean, intersect, kl_div, js_div bhattacharyya, hellinger, chisqr, correl. \
+                hellinger and js_div give the best results.")
 
     parser.add_argument(
         "--bins","-b", default="64", type=int,
@@ -248,12 +257,7 @@ def parse_args(args=sys.argv[1:]):
 
     parser.add_argument(
         "--map_k","-k", default="5", type=int,
-        help = "Mean average precision at top-K results")
-
-    parser.add_argument(
-        "--use_masks", action="store_true",
-        help = "whether to use masks for histogram \
-                generation or not")
+        help = "Mean average precision of top-K results")
 
     args = parser.parse_args(args)
     return args
@@ -300,5 +304,5 @@ if __name__ == '__main__':
 
     # use -v in cmdline args
     if args.plot:
-        query_index = 2
+        query_index = np.random.randint(0,30)
         plot_results([query_list[query_index]] + [museum_list[index] for index in result_list_of_lists[query_index]])
