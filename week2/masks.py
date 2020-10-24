@@ -381,9 +381,7 @@ def extract_mask(image:np.ndarray, retriever:str) -> np.ndarray:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generates, evaluates and stores (optional, see --output) masks generated from the given query dataset. ")
     parser.add_argument('--query', help="Path to query dataset.", type=str)
-    parser.add_argument('--retriever', help="Mask retriever method to use. Options Available: \
-        color_mono, color_multi_rgb, color_multi_hsv, color_multi_sv, color_multi_lab, color_multi_ycbcr, color_multi_xyz, edges", \
-            type=str, choices=list(BG_RETRIEVERS.keys()),)
+    parser.add_argument('--retriever', help="Mask retriever method to use.", type=str, choices=list(BG_RETRIEVERS.keys()),)
     parser.add_argument('--output', help="Path to folder where generated masks will be stored. Results are not saved if unspecified.", type=str,)
     args = parser.parse_args()
 
