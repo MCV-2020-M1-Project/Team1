@@ -13,6 +13,7 @@ import multiprocessing.dummy as mp
 from distances import compute_distance
 from histograms import extract_features
 from evaluation import mapk
+from masks import extract_paintings_from_mask
 
 def get_image_path_list(data_path:str, extension:str='jpg') -> List[Path]:
     """
@@ -127,47 +128,8 @@ def search(img_path:Path=None, descriptor:str='rgb_histogram_1d', metric:str="eu
     result_list = [index for index in nearest_indices]
     return result_list
 
-def search_batch(query_list:List[Path]=None, descriptor:str='rgb_histogram_1d', metric:str="euclidean", bins:int=64, k:int=10) -> List[int]:
-    """
-    Searches the reference dataset for most similar images to the
-    query image
 
-    Args:
-        query_list: list containing path to all query images
-        descriptor: method used to compute features
-        metric: similarity measure to compare images
-        bins: number of bins to use for histogram
-        k: to return top k images that are most similar
-
-    Returns:
-        a list of lists indices of top k images in reference dataset
-        that are most similar to query image
-    """
-    
-    # define particular descriptors and distance metrics to be used
-    # so that you don't have to input the function arguments every 
-    #time you call the function
-    extract_features_func = partial(extract_features, descriptor=descriptor,bins=bins)
-    distance_func = partial(compute_distance, metric=metric)
-    
-    def _extract_features_from_path(_path):
-        return extract_features_func(path2img(_path))
-
-    result_list_of_lists = []
-    with mp.Pool(processes=20) as p:
-        
-        query_descriptors = p.map(_extract_features_from_path, [query_path for query_path in query_list])
-        image_descriptors = p.map(_extract_features_from_path, [ref_path for ref_path in museum_list])
-    
-        for q in range(len(query_list)):
-            query_feature = query_descriptors[q]
-            dist = p.starmap(distance_func, [(query_feature, ref_feature) for ref_feature in image_descriptors])
-            nearest_indices = np.argsort(dist)[:k]
-            result_list = [index for index in nearest_indices]
-            result_list_of_lists.append(result_list)
-    return result_list_of_lists
-
-def search_batch_mask(query_list:List[Path]=None, mask_list:List[Path]=None ,descriptor:str='rgb_histogram_1d', metric:str="euclidean", bins:int=64, k:int=10) -> List[int]:
+def search_batch(query_list:List[Path]=None, mask_list:List[Path]=None ,descriptor:str='rgb_histogram_1d', metric:str="euclidean", bins:int=64, k:int=10, multiple:bool=False) -> List[int]:
     """
     Searches the reference dataset for most similar images to the
     query image
@@ -189,27 +151,40 @@ def search_batch_mask(query_list:List[Path]=None, mask_list:List[Path]=None ,des
     # so that you don't have to input the function arguments every 
     # time you call the function
     extract_features_func = partial(extract_features, descriptor=descriptor,bins=bins)
-
     distance_func = partial(compute_distance, metric=metric)
     
-    def _extract_features_from_path(_path):
+    def _extract_features_from_path_unique(_path):
         return extract_features_func(path2img(_path))
+    
+    def _extract_features_from_path(_path):
+        return [extract_features_func(path2img(_path)), ]
 
     def _extract_features_from_path_mask(_path,_path_mask):
-        return extract_features_func(path2img(_path), mask = path2mask(_path_mask))
+        img, mask = path2img(_path), path2mask(_path_mask)
+        if multiple:
+            masks = extract_paintings_from_mask(mask)
+            #print(f"{_path_mask} - {len(masks)}")
+            return [extract_features_func(img, mask=m) 
+                    for m in masks]
+        return [extract_features_func(img, mask = mask), ]
 
     result_list_of_lists = []
     with mp.Pool(processes=20) as p:
-        
-        query_descriptors = p.starmap(_extract_features_from_path_mask, [(query_path,mask_path) for query_path, mask_path in zip(query_list, mask_list)])
-        image_descriptors = p.map(_extract_features_from_path, [ref_path for ref_path in museum_list])
-    
+        if mask_list is not None:
+            query_descriptors = p.starmap(_extract_features_from_path_mask, [(query_path, mask_path) for query_path, mask_path in zip(query_list, mask_list)])
+        else:
+            query_descriptors = p.map(_extract_features_from_path, [query_path for query_path in query_list])
+            
+        image_descriptors = p.map(_extract_features_from_path_unique, [ref_path for ref_path in museum_list])
         for q in range(len(query_list)):
-            query_feature = query_descriptors[q]
-            dist = p.starmap(distance_func, [(query_feature, ref_feature) for ref_feature in image_descriptors])
-            nearest_indices = np.argsort(dist)[:k]
-            result_list = [index for index in nearest_indices]
-            result_list_of_lists.append(result_list)
+            query_list = []
+            for i in range(len(query_descriptors[q])):
+                query_feature = query_descriptors[q][i]
+                dist = p.starmap(distance_func, [(query_feature, ref_feature) for ref_feature in image_descriptors])
+                nearest_indices = np.argsort(dist)[:k]
+                result_list = [index for index in nearest_indices]
+                query_list.append(result_list)
+            result_list_of_lists.append(query_list)
     return result_list_of_lists
 
 def parse_args(args=sys.argv[1:]):
@@ -228,6 +203,10 @@ def parse_args(args=sys.argv[1:]):
         help = "whether to use masks for histogram generation or not. Using masks helps \
                 us improve our features by extract the painting(foreground) from the \
                 background and also removing any text present on the painting")
+
+    parser.add_argument(
+        "--multiple", action="store_true",
+        help = "whether several paintings can appear in the mask or not (with a current maximum of 2).")
 
     parser.add_argument(
         "--museum_path","-r", default="/home/adityassrana/datatmp/Datasets/museum_dataset/processed/BBDD",
@@ -283,15 +262,14 @@ if __name__ == '__main__':
     k = args.map_k
     print('---------Now Searching Batches--------')
 
+    mask_list = None
     if args.use_masks:
         # index the masks when required
         mask_list = get_image_path_list(query_path, extension='png')
         print(f'number of masks in query dataset is {len(mask_list)}')
-        result_list_of_lists = search_batch_mask(query_list = query_list, mask_list=mask_list, descriptor = args.descriptor, metric = args.metric, bins= args.bins, k=k)
-    else:
-        result_list_of_lists = search_batch(query_list = query_list, descriptor = args.descriptor, metric = args.metric, bins= args.bins, k=k)
+    
+    result_list_of_lists = search_batch(query_list = query_list, mask_list=mask_list, descriptor = args.descriptor, metric = args.metric, bins= args.bins, k=k, multiple=args.multiple)
 
-    #print(result_list_of_lists)
     map_k = mapk(ground_truth, result_list_of_lists, k=k)
     print(f'map@{k} for the current run is {map_k}')
 

@@ -10,82 +10,6 @@ import argparse
 import time
 from evaluation import evaluate_mask
 
-def evaluate_mask_retriever(query_db_path: str, retriever: str, *, output: str = None):
-    """
-    Evaluates the given mask retriever against all the images in the query dataset.
-    
-    Parameters
-    ----------
-    query_db_path : path where que images of the query dataset are located
-    retriever : mask method to evaluate
-    
-    Returns
-    -------
-    pr: precision
-    rec: recall
-    f1: F1-score
-    results: pandas dataframe that contains image-wise metrics.
-    """
-    
-    if not os.path.exists(query_db_path):
-        print("[ERROR] Query dataset path is wrong.")
-        exit()
-    if output is not None and not os.path.exists(output):
-        print("[ERROR] Output folder does not exist.")
-        exit()
-        
-    # We load the dataset metadata
-    with open(os.path.join(query_db_path, "frames.pkl"), 'rb') as file:
-        frames = pkl.load(file)
-    db_count = len(frames)
-    #print(f"There are {db_count} images in the query dataset.")
-
-    # We load the images and their associated masks
-    images = [cv2.imread(os.path.join(query_db_path, f"{i:05d}.jpg")) for i in range(db_count)]
-    masks = [cv2.imread(os.path.join(query_db_path, f"{i:05d}.png")) for i in range(db_count)]
-    
-    # We generate the masks and compare it with the GT mask, computing several metrics
-    generated_masks = [extract_mask(images[i], retriever) for i in range(db_count)]
-    if output is not None:
-        # we save all generated masks
-        for i in range(db_count):
-            cv2.imwrite(os.path.join(output, f"{i:05d}.png"), generated_masks[i] * 255)
-
-    print(f"[INFO] Masks successfully stored in '{output}'")
-    try:
-        data = [(i, ) + evaluate_mask(generated_masks[i], masks[i]) for i in range(db_count)]
-        results = pd.DataFrame(data=data, columns=("index", "precision", "recall", "f1", "tp", "fp", "fn", "tn"))
-        # We print the average metrics for the whole query dataset.
-        pr, rec, f1 = results["precision"].mean(), results["recall"].mean(), results["f1"].mean()
-        return pr, rec, f1, results
-    except:
-        print("[INFO] GT Masks not found => evaluation not performed.")
-        return None
-    
-
-
-def __extract_biggest_connected_component(mask: np.ndarray) -> np.ndarray:
-    """
-    Extracts the biggest connected component from a mask (0 and 1's).
-
-    Args:
-        img: 2D array of type np.float32 representing the mask
-    
-    Returns : 2D array, mask with 1 in the biggest component and 0 outside
-    """
-    # extract all connected components
-    num_labels, labels_im = cv2.connectedComponents(mask.astype(np.uint8))
-    
-    # we find and return only the biggest one
-    max_val, max_idx = 0, -1
-    for i in range(1, num_labels):
-        area = np.sum(labels_im == i)
-        if area > max_val:
-            max_val = area
-            max_idx = i
-            
-    return (labels_im == max_idx).astype(float)
-
 
 def evaluate_mask_retriever(query_db_path: str, retriever: str, *, output: str = None):
     """
@@ -221,7 +145,7 @@ def extract_mask_based_on_color_graph_mono(img: np.ndarray, *, use_diagonals: bo
 
     if multi:
         mask_c = mask.copy()
-        TH = 0.10
+        TH = 0.15
         i = 0
         end = False
         masks = []
@@ -293,6 +217,7 @@ def extract_mask_based_on_color_graph_multi(img, *, mode="hsv", multi=False):
             final_mask = mask
             
     return final_mask
+
 
 def get_painting_score(mask):
     # just in case there are multiple paintings
@@ -375,6 +300,17 @@ def extract_mask(image:np.ndarray, retriever:str) -> np.ndarray:
         2D array, mask with 1 in the foreground and 0 in the background
     """
     return BG_RETRIEVERS[retriever][0](image, **BG_RETRIEVERS[retriever][1])
+
+def extract_paintings_from_mask(mask:np.ndarray):
+    to_return = []
+    num_labels, labels = cv2.connectedComponents(mask.astype(np.uint8))
+    for lab in range(1, num_labels):      
+        m = (labels == lab).astype(np.uint8)
+        first_pixel = np.min(np.where(m != 0)[1])
+        to_return.append((m, first_pixel))
+    both = list(zip(*sorted(to_return, key=lambda t: t[1])))
+    return both[0]
+
 
 
 

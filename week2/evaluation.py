@@ -25,22 +25,28 @@ def apk(actual, predicted, k=10):
     score : double
             The average precision at k over the input lists
     """
-    if len(predicted) > k:
-        predicted = predicted[:k]
+    #print(f"{actual} VS {predicted}")
+    scores = []
+    
+    #print((actual, predicted))
+    for (actual, predicted) in zip(actual, predicted):
+        #print(f">{(actual, predicted)}")
+        if len(predicted) > k:
+            predicted = predicted[:k]
 
-    score = 0.0
-    num_hits = 0.0
+        score = 0.0
+        num_hits = 0.0
 
-    for i, p in enumerate(predicted):
-        if p in actual and p not in predicted[:i]:
-            num_hits += 1.0
-            score += num_hits / (i + 1.0)
+        for i, p in enumerate(predicted):
+            if p == actual and p not in predicted[:i]:
+                num_hits += 1.0
+                score += num_hits / (i + 1.0)
 
-    if not actual:
-        return 0.0
-
-    return score / min(len(actual), k)
-
+        if not actual:
+            scores.append(0.0)
+        else:
+            scores.append(score / min(1, k))
+    return scores
 
 def mapk(actual, predicted, k=10):
     """
@@ -62,7 +68,8 @@ def mapk(actual, predicted, k=10):
     score : double
             The mean average precision at k over the input lists
     """
-    return np.mean([apk(a, p, k) for a, p in zip(actual, predicted)])
+    apks = [apk(a, p, k) for a, p in zip(actual, predicted)]
+    return np.mean([a for a_s in apks for a in a_s])
 
 
 def evaluate_mask(mask: np.ndarray, mask_gt: np.ndarray):
