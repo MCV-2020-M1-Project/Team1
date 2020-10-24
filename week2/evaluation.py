@@ -95,8 +95,8 @@ def evaluate_mask(mask: np.ndarray, mask_gt: np.ndarray):
     tn = int(np.sum((1 - mask) * (1 - mask_gt)))
     
     # we compute Precision, Recall and F1 metrics.
-    precision = tp / (tp + fp)
-    recall = tp / (tp + fn)
+    precision = tp / (tp + fp) if (tp + fp) != 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) != 0 else 0
     if precision + recall == 0:
         f1 = 0
     else:
