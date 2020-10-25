@@ -18,7 +18,7 @@ from PIL import Image
 
 def getRectContours(img):
     
-    contours,h = cv2.findContours(img,cv2.RETR_TREE   ,cv2.CHAIN_APPROX_SIMPLE  ) 
+    contours,h = cv2.findContours(img,cv2.RETR_TREE   ,cv2.CHAIN_APPROX_TC89_KCOS  ) 
     rectContours = []
     idx = 0
     resultImg = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)  
@@ -32,7 +32,7 @@ def getRectContours(img):
         hull = cv2.convexHull(cnt)
         hull_list.append(hull)
         approx = cv2.approxPolyDP(cnt,0.05*cv2.arcLength(cnt,True),True) 
-        if len(approx)==4: 
+        if len(approx)>=4: 
             idx = idx + 1
             #print ("square") 
             #print( cnt )
@@ -47,9 +47,9 @@ def getRectContours(img):
     
     resultImg=cv2.cvtColor(resultImg, cv2.COLOR_BGR2GRAY)
     
-    resultImg = cv2.morphologyEx(resultImg, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (10,5)))
-    resultImg = cv2.morphologyEx(resultImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (5,10)))
-    resultImg = cv2.cvtColor(resultImg, cv2.COLOR_GRAY2BGR)      
+    # resultImg = cv2.morphologyEx(resultImg, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (10,5)))
+    # resultImg = cv2.morphologyEx(resultImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (5,10)))
+    # resultImg = cv2.cvtColor(resultImg, cv2.COLOR_GRAY2BGR)      
 
 
     return  resultImg

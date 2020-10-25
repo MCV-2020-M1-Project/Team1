@@ -39,7 +39,7 @@ def resize_mantain_ratio(image, width=None, height=None, inter=cv2.INTER_AREA):
 def imageThresholding(original):
 
     image = original
-    imgFlipped = cv2.flip(original, 1)
+    # imgFlipped = cv2.flip(original, 1)
     #image = cv2.bilateralFilter(image, d=1, sigmaColor=0, sigmaSpace=30)
     
     hls = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)
@@ -53,7 +53,7 @@ def imageThresholding(original):
     s = getSobel(s)
 
     verticalKernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3,10))
-    horizontalKernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (5,1))
+    horizontalKernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (5,3))
     denoiseKernel = np.ones((3,3), np.uint8)
     iters = 1
 
