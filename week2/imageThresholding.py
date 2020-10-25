@@ -52,31 +52,58 @@ def imageThresholding(original):
     l = getSobel(l)
     s = getSobel(s)
 
-    verticalKernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3,10))
-    horizontalKernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (5,3))
-    denoiseKernel = np.ones((3,3), np.uint8)
+    verticalKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1,3))
+    horizontalKernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (int(h.shape[1]*0.4),3))
+    denoiseKernel = np.ones((1,10), np.uint8)
     iters = 1
 
-    hue = binarizeAndMorphChannel_twoDirs(h, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters)
+    hue = binarizeAndMorphTophat(h, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters)
 
-    lightness = binarizeAndMorphChannel_twoDirs(l, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters)
+    lightness = binarizeAndMorphTophat(l, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters)
 
-    saturation = binarizeAndMorphChannel_twoDirs(s, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters)
+    saturation = binarizeAndMorphTophat(s, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters)
 
     return hue, lightness, saturation
 
-def binarizeAndMorphChannel_twoDirs(img, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters):
-    img = cv2.morphologyEx(img, cv2.MORPH_OPEN, denoiseKernel)
-
+def binarizeAndMorphTophat(img, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters):
+    closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, horizontalKernel)
+    opening = cv2.morphologyEx(img, cv2.MORPH_OPEN, verticalKernel)
+    tophat = closing - opening
+    lowThreshVal = tophat.max() * 0.4
+    
     ret, tmp = cv2.threshold(
-        img, lowThreshVal, topThreshVal, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
-    imgY = morphChannel(tmp, verticalKernel, iters)
-    imgX = morphChannel(tmp, horizontalKernel, iters)
+        img, lowThreshVal, topThreshVal, cv2.THRESH_BINARY)
+
+    dilate = cv2.morphologyEx(tmp, cv2.MORPH_DILATE, cv2.getStructuringElement(cv2.MORPH_RECT, (5,1)))
+
+    imgX = morphChannel(dilate, horizontalKernel, iters)
+    imgY = morphChannel(dilate, verticalKernel, iters)
 
     #tmp = cv2.addWeighted(imgX,0.2, imgY, 0.8, 1)
     tmp = cv2.bitwise_and(imgX, imgY)
     ret, result = cv2.threshold(
-        tmp, lowThreshVal, topThreshVal, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+        tmp, lowThreshVal, topThreshVal, cv2.THRESH_BINARY)
+    return result
+
+
+def binarizeAndMorphChannel_twoDirs(img, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters):
+    
+    verticalKernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (2,5))
+    horizontalKernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (int(img.shape[1]*0.4),2))
+
+    img = cv2.morphologyEx(img, cv2.MORPH_GRADIENT, denoiseKernel)
+    lowThreshVal = 100
+    topThreshVal = 255
+
+    ret, tmp = cv2.threshold(
+        img, lowThreshVal, topThreshVal, cv2.THRESH_BINARY)
+    imgX = morphChannel(tmp, horizontalKernel, iters)
+    imgY = morphChannel(tmp, verticalKernel, iters)
+
+    #tmp = cv2.addWeighted(imgX,0.2, imgY, 0.8, 1)
+    tmp = cv2.bitwise_and(imgX, imgY)
+    ret, result = cv2.threshold(
+        tmp, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
     return result
 
 def binarizeAndMorphChannel(img, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters):

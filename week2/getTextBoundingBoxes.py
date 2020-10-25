@@ -17,22 +17,26 @@ from PIL import Image
 
 
 def getRectContours(img):
+
+    horizontalKernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (int(img.shape[0]*0.15),2))
+
+    dilate = cv2.morphologyEx(img, cv2.MORPH_DILATE, horizontalKernel)
     
-    contours,h = cv2.findContours(img,cv2.RETR_TREE   ,cv2.CHAIN_APPROX_TC89_KCOS  ) 
+    contours,h = cv2.findContours(dilate,cv2.RETR_TREE   ,cv2.CHAIN_APPROX_TC89_KCOS  ) 
     rectContours = []
     idx = 0
-    resultImg = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)  
+    resultImg = np.zeros((img.shape[0],img.shape[1],3), np.uint8)
     hull_list = []
     
 
     for cnt in contours: 
         x,y,w,h = cv2.boundingRect(cnt)
-        resultImg = cv2.rectangle(resultImg,(x,y),(x+w,y+h),(255,255,255),-1)
+        # resultImg = cv2.rectangle(resultImg,(x,y),(x+w,y+h),(255,255,255),-1)
         
         hull = cv2.convexHull(cnt)
         hull_list.append(hull)
-        approx = cv2.approxPolyDP(cnt,0.05*cv2.arcLength(cnt,True),True) 
-        if len(approx)>=4: 
+        approx = cv2.approxPolyDP(cnt,0.02*cv2.arcLength(cnt,True),True) 
+        if len(approx)>=3: 
             idx = idx + 1
             #print ("square") 
             #print( cnt )
@@ -43,12 +47,15 @@ def getRectContours(img):
     finalList = rectContours
     for i in range(len(finalList)):
         #cv2.drawContours(resultImg, contours, i, (0,255,0), 2)
-        cv2.drawContours(resultImg, finalList, i, (255,255,255), -1)
+        cv2.drawContours(resultImg, finalList, i, (255,0,255), -1)
     
-    resultImg=cv2.cvtColor(resultImg, cv2.COLOR_BGR2GRAY)
+    # resultImg=cv2.cvtColor(resultImg, cv2.COLOR_BGR2GRAY)
     
-    # resultImg = cv2.morphologyEx(resultImg, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (10,5)))
-    # resultImg = cv2.morphologyEx(resultImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (5,10)))
+    # wideKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (int(resultImg.shape[1]*0.08),3))
+    # tallKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1,5))
+    # resultImg = cv2.morphologyEx(resultImg, cv2.MORPH_CLOSE, tallKernel)
+    # resultImg = cv2.morphologyEx(resultImg, cv2.MORPH_CLOSE, wideKernel)
+    # #resultImg = cv2.morphologyEx(resultImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (5,10)))
     # resultImg = cv2.cvtColor(resultImg, cv2.COLOR_GRAY2BGR)      
 
 
@@ -81,6 +88,8 @@ if __name__ == '__main__':
         imgResult_s = getRectContours(s)
         s = cv2.cvtColor(s, cv2.COLOR_GRAY2BGR)
         #result_s = cv2.drawContours(s, contours_s, -1, (0,255,0), 1)
+
+        # imgResult_h = cv2.add(imgResult_l, imgResult_s)
 
         concat_img = np.concatenate((imThresh.resize_mantain_ratio(
                                         image, width, height),
