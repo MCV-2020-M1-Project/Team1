@@ -1,0 +1,8 @@
+lab_histogram_3d_blocks | hellinger | MAP@1 = 0.833
+lab_histogram_3d_blocks | hellinger | MAP@5 = 0.853
+ycrcb_histogram_3d_blocks | hellinger | MAP@1 = 0.833
+ycrcb_histogram_3d_blocks | hellinger | MAP@5 = 0.853
+lab_histogram_3d_blocks | js_div | MAP@1 = 0.667
+lab_histogram_3d_blocks | js_div | MAP@5 = 0.737
+ycrcb_histogram_3d_blocks | js_div | MAP@1 = 0.667
+ycrcb_histogram_3d_blocks | js_div | MAP@5 = 0.737

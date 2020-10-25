@@ -289,6 +289,11 @@ if __name__ == '__main__':
     map_k = mapk(ground_truth, result_list_of_lists, k=k)
     print(f'map@{k} for the current run is {map_k}')
 
+    f = open("results.txt", "a")
+    f.write(f"{args.descriptor} | {args.metric} | MAP@{args.map_k} = {map_k:.3f}\n")
+    f.close()
+    print("\n#################################################\n#################################################\n")
+    
     # extra functions for pickling and visualizing results
     # use -p in cmdline args
     if args.pickle:
