@@ -39,48 +39,52 @@ def resize_mantain_ratio(image, width=None, height=None, inter=cv2.INTER_AREA):
 def imageThresholding(original):
 
     image = original
-    #image = cv2.bilateralFilter(image, d=0, sigmaColor=2, sigmaSpace=20)
+    image = cv2.bilateralFilter(image, d=1, sigmaColor=0, sigmaSpace=30)
     
     hls = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)
 
     h, l, s = cv2.split(hls)
 
-    lowThreshVal = 25
+    lowThreshVal = 0
     topThreshVal = 255
 
 
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 2))
-    h = cv2.morphologyEx(h, cv2.MORPH_OPEN, kernel)
+    horizontalKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1,10))
+    denoiseKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2,2))
+    iters = 1
+
+    h = cv2.morphologyEx(h, cv2.MORPH_OPEN, denoiseKernel)
 
     ret, hue = cv2.threshold(
         h, lowThreshVal, topThreshVal, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
 
-    hue = cv2.dilate(hue, kernel, iterations=1)
-    hue = cv2.erode(hue, kernel, iterations=1)
+    # hue = morphChannel(hue, denoiseKernel, iters)
+    hue = morphChannel(hue, horizontalKernel, iters)
 
-    hue = cv2.erode(hue, kernel, iterations=1)
-    hue = cv2.dilate(hue, kernel, iterations=1)
-
-    l = cv2.morphologyEx(l, cv2.MORPH_OPEN, kernel)
+    l = cv2.morphologyEx(l, cv2.MORPH_OPEN, denoiseKernel)
     ret, lightness = cv2.threshold(
-        l, lowThreshVal, topThreshVal, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        l, lowThreshVal, topThreshVal, cv2.THRESH_OTSU)
 
-    lightness = cv2.dilate(lightness, kernel, iterations=1)
-    lightness = cv2.erode(lightness, kernel, iterations=1)
+    # lightness = morphChannel(lightness, denoiseKernel, iters)
+    lightness = morphChannel(lightness, horizontalKernel, iters)
 
-    lightness = cv2.erode(lightness, kernel, iterations=1)
-    lightness = cv2.dilate(lightness, kernel, iterations=1)
-
-    s = cv2.morphologyEx(s, cv2.MORPH_OPEN, kernel)
+    s = cv2.morphologyEx(s, cv2.MORPH_OPEN, denoiseKernel)
     ret, saturation = cv2.threshold(
-        s, lowThreshVal, topThreshVal, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        s, lowThreshVal, topThreshVal, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
 
-    saturation = cv2.dilate(saturation, kernel, iterations=1)
-    saturation = cv2.erode(saturation, kernel, iterations=1)
+    # saturation = morphChannel(saturation, denoiseKernel, iters)
+    saturation = morphChannel(saturation, horizontalKernel, iters)
 
-    saturation = cv2.erode(saturation, kernel, iterations=1)
-    saturation = cv2.dilate(saturation, kernel, iterations=1)
     return hue, lightness, saturation
+
+def morphChannel(img, kernel, iters):
+    img = cv2.dilate(img, kernel, iterations=iters)
+    img = cv2.erode(img, kernel, iterations=iters)
+
+    img = cv2.erode(img, kernel, iterations=iters)
+    img = cv2.dilate(img, kernel, iterations=iters)
+
+    return img
 
 
 if __name__ == '__main__':
@@ -104,7 +108,7 @@ if __name__ == '__main__':
                                      resize_mantain_ratio(l, width, height),
                                      resize_mantain_ratio(s, width, height)), axis=1)
 
-                                     
+
         print("Image {}".format(i))
         cv2.imshow('Image', concat_img)
         cv2.waitKey(0)
