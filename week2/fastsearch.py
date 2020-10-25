@@ -288,6 +288,9 @@ if __name__ == '__main__':
 
     map_k = mapk(ground_truth, result_list_of_lists, k=k)
     print(f'map@{k} for the current run is {map_k}')
+    if k > 1:
+        map_1 = mapk(ground_truth, result_list_of_lists, k=1)
+        print(f'map@{1} for the current run is {map_1}')
 
     # extra functions for pickling and visualizing results
     # use -p in cmdline args

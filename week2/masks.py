@@ -65,7 +65,7 @@ def evaluate_mask_retriever(query_db_path: str, retriever: str, *, output: str =
     
 
 
-def __extract_biggest_connected_component(mask: np.ndarray) -> np.ndarray:
+def extract_biggest_connected_component(mask: np.ndarray) -> np.ndarray:
     """
     Extracts the biggest connected component from a mask (0 and 1's).
 
@@ -150,7 +150,7 @@ def extract_mask_based_on_color_graph_mono(img: np.ndarray, *, use_diagonals: bo
         end = False
         masks = []
         while i < MAX_PAINTINGS and not end:
-            biggest = __extract_biggest_connected_component(mask_c).astype(float)
+            biggest = extract_biggest_connected_component(mask_c).astype(float)
             sc = get_painting_score(biggest)
             #print(sc)
             if sc > TH:
@@ -166,7 +166,7 @@ def extract_mask_based_on_color_graph_mono(img: np.ndarray, *, use_diagonals: bo
                 resulting_mask += c
             return resulting_mask.astype(float)
         # else the biggest one...
-    return __extract_biggest_connected_component(mask).astype(float)
+    return extract_biggest_connected_component(mask).astype(float)
 
 
 def extract_mask_based_on_color_graph_multi(img, *, mode="hsv", multi=False):
