@@ -66,8 +66,8 @@ def imageThresholding(original):
     return hue, lightness, saturation
 
 def binarizeAndMorphTophat(img, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters):
-    closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, horizontalKernel)
-    opening = cv2.morphologyEx(img, cv2.MORPH_OPEN, verticalKernel)
+    closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, verticalKernel)
+    opening = cv2.morphologyEx(closing, cv2.MORPH_OPEN, horizontalKernel)
     tophat = closing - opening
     lowThreshVal = tophat.max() * 0.4
     
