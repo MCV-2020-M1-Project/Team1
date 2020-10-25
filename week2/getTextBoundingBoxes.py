@@ -10,9 +10,15 @@ import masks
 import math
 from PIL import Image
 
+# THIS FILE GENERATES THE OUTPUT IMAGES. call imThresh.imageThresholding(image), returns 3 images (h,l,s).
+# Compute getRectContours(img) on a specific channel to get the mask. Running getTextBoundingBoxes.py 
+#  generates the output files in '../resources/w2_out'
+
+
+
 def getRectContours(img):
     
-    contours,h = cv2.findContours(img,cv2.RETR_TREE   ,cv2.CHAIN_APPROX_TC89_L1  ) 
+    contours,h = cv2.findContours(img,cv2.RETR_TREE   ,cv2.CHAIN_APPROX_SIMPLE  ) 
     rectContours = []
     idx = 0
     resultImg = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)  
@@ -21,15 +27,10 @@ def getRectContours(img):
 
     for cnt in contours: 
         x,y,w,h = cv2.boundingRect(cnt)
-        resultImg = cv2.rectangle(resultImg,(x,y),(x+w,y+h),(0,255,0),1)
+        resultImg = cv2.rectangle(resultImg,(x,y),(x+w,y+h),(255,255,255),-1)
         
         hull = cv2.convexHull(cnt)
         hull_list.append(hull)
-
-
-
-
-        '''
         approx = cv2.approxPolyDP(cnt,0.05*cv2.arcLength(cnt,True),True) 
         if len(approx)==4: 
             idx = idx + 1
@@ -38,13 +39,18 @@ def getRectContours(img):
             cv2.drawContours(img,[cnt],0,(0,0,255),-1) 
             rectContours.append(cnt)
 
-        '''    
-
-    # Draw contours + hull results
-    
-    for i in range(len(contours)):
+    # Draw
+    finalList = rectContours
+    for i in range(len(finalList)):
         #cv2.drawContours(resultImg, contours, i, (0,255,0), 2)
-        cv2.drawContours(resultImg, hull_list, i, (255,0,255), 2)
+        cv2.drawContours(resultImg, finalList, i, (255,255,255), -1)
+    
+    resultImg=cv2.cvtColor(resultImg, cv2.COLOR_BGR2GRAY)
+    
+    resultImg = cv2.morphologyEx(resultImg, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_RECT, (10,5)))
+    resultImg = cv2.morphologyEx(resultImg, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (5,10)))
+    resultImg = cv2.cvtColor(resultImg, cv2.COLOR_GRAY2BGR)      
+
 
     return  resultImg
 

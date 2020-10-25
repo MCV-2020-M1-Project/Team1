@@ -39,7 +39,8 @@ def resize_mantain_ratio(image, width=None, height=None, inter=cv2.INTER_AREA):
 def imageThresholding(original):
 
     image = original
-    image = cv2.bilateralFilter(image, d=1, sigmaColor=0, sigmaSpace=30)
+    imgFlipped = cv2.flip(original, 1)
+    #image = cv2.bilateralFilter(image, d=1, sigmaColor=0, sigmaSpace=30)
     
     hls = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)
 
@@ -47,35 +48,59 @@ def imageThresholding(original):
 
     lowThreshVal = 0
     topThreshVal = 255
+    h = getSobel(h)
+    l = getSobel(l)
+    s = getSobel(s)
 
-
-    horizontalKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1,10))
-    denoiseKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2,2))
+    verticalKernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (3,10))
+    horizontalKernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (5,1))
+    denoiseKernel = np.ones((3,3), np.uint8)
     iters = 1
 
-    h = cv2.morphologyEx(h, cv2.MORPH_OPEN, denoiseKernel)
+    hue = binarizeAndMorphChannel_twoDirs(h, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters)
 
-    ret, hue = cv2.threshold(
-        h, lowThreshVal, topThreshVal, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+    lightness = binarizeAndMorphChannel_twoDirs(l, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters)
 
-    # hue = morphChannel(hue, denoiseKernel, iters)
-    hue = morphChannel(hue, horizontalKernel, iters)
-
-    l = cv2.morphologyEx(l, cv2.MORPH_OPEN, denoiseKernel)
-    ret, lightness = cv2.threshold(
-        l, lowThreshVal, topThreshVal, cv2.THRESH_OTSU)
-
-    # lightness = morphChannel(lightness, denoiseKernel, iters)
-    lightness = morphChannel(lightness, horizontalKernel, iters)
-
-    s = cv2.morphologyEx(s, cv2.MORPH_OPEN, denoiseKernel)
-    ret, saturation = cv2.threshold(
-        s, lowThreshVal, topThreshVal, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
-
-    # saturation = morphChannel(saturation, denoiseKernel, iters)
-    saturation = morphChannel(saturation, horizontalKernel, iters)
+    saturation = binarizeAndMorphChannel_twoDirs(s, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters)
 
     return hue, lightness, saturation
+
+def binarizeAndMorphChannel_twoDirs(img, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters):
+    img = cv2.morphologyEx(img, cv2.MORPH_OPEN, denoiseKernel)
+
+    ret, tmp = cv2.threshold(
+        img, lowThreshVal, topThreshVal, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+    imgY = morphChannel(tmp, verticalKernel, iters)
+    imgX = morphChannel(tmp, horizontalKernel, iters)
+
+    #tmp = cv2.addWeighted(imgX,0.2, imgY, 0.8, 1)
+    tmp = cv2.bitwise_and(imgX, imgY)
+    ret, result = cv2.threshold(
+        tmp, lowThreshVal, topThreshVal, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+    return result
+
+def binarizeAndMorphChannel(img, lowThreshVal, topThreshVal, denoiseKernel, verticalKernel, horizontalKernel, iters):
+    img = cv2.morphologyEx(img, cv2.MORPH_OPEN, denoiseKernel)
+
+    ret, tmp = cv2.threshold(
+        img, lowThreshVal, topThreshVal, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+    result = morphChannel(tmp, verticalKernel, iters)
+    return result
+
+def getSobel(inputImg):    
+
+    scale = 1
+    delta = 0
+    ddepth = cv2.CV_8U    
+
+    lx = cv2.Sobel(inputImg, ddepth, 0, 1, ksize=3, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
+    ly = cv2.Sobel(inputImg, ddepth, 1, 0, ksize=3, scale=scale, delta=delta, borderType=cv2.BORDER_DEFAULT)
+    abslx = cv2.convertScaleAbs(lx)
+    absly = cv2.convertScaleAbs(ly)
+
+    inputImg=cv2.addWeighted(abslx, 0.2, absly, 0.8, 0)
+    inputImg = cv2.bitwise_or(abslx, absly)
+    return inputImg
 
 def morphChannel(img, kernel, iters):
     img = cv2.dilate(img, kernel, iterations=iters)
