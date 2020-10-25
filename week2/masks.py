@@ -311,6 +311,15 @@ def extract_paintings_from_mask(mask:np.ndarray):
     both = list(zip(*sorted(to_return, key=lambda t: t[1])))
     return both[0]
 
+def generate_text_mask(shape, textboxes):
+    if textboxes is None or len(textboxes) == 0:
+        return np.zeros(shape).astype(np.uint8)
+    
+    mask = np.zeros(shape)
+    for (xtl, ytl, xbr, ybr) in textboxes:
+        pts = np.array(((xtl, ytl), (xtl, ybr), (xbr, ybr), (xbr, ytl)))
+        cv2.fillConvexPoly(mask, pts, True)
+    return mask.astype(np.uint8)
 
 
 

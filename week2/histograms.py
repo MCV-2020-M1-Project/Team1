@@ -44,6 +44,7 @@ def gray_historam(image:np.ndarray, bins:int=256, mask:np.ndarray=None) -> np.nd
         1D  array of type np.float32 containing histogram
         feautures of image
     """
+    print(mask is None)
     gray_image = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
     hist = cv2.calcHist([gray_image],[0], mask, [bins], [0,256])
     hist = cv2.normalize(hist, hist)
@@ -242,12 +243,22 @@ def block_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:in
         Histogram features flattened into a 
         1D array of type np.float32
     """
-    h,w = image.shape[:2]
-    block_h = int(np.ceil(h / num_blocks))
-    block_w = int(np.ceil(w / num_blocks))
+    #h,w = image.shape[:2]
+    if mask is not None:
+        x,y,w,h = cv2.boundingRect(mask)
+        block_h = int(np.ceil(h / num_blocks))
+        block_w = int(np.ceil(w / num_blocks))
+    else:
+        x,y = 0,0
+        h,w = image.shape[:2]
+        block_h = int(np.ceil(h / num_blocks))
+        block_w = int(np.ceil(w / num_blocks))
+        
     features = []
-    for i in range(0, h, block_h):
-        for j in range(0, w, block_w):
+    #for i in range(0, h, block_h):
+    for i in range(y, y+h, block_h):
+        #for j in range(0, w, block_w):
+        for j in range(x, x+w, block_w):
             image_block = image[i:i+block_h, j:j+block_w]
             if mask is not None:
                 mask_block = mask[i:i+block_h, j:j+block_w]
@@ -274,7 +285,7 @@ def pyramid_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:
     """
     features = []
     for level in range(1, max_level+1):
-        num_blocks = 4 ** (level-1)
+        num_blocks = 2 ** (level-1)
         features.extend(block_descriptor(image, descriptor_func, bins, mask, num_blocks))
     return np.stack(features).flatten()  
 
@@ -288,8 +299,10 @@ DESCRIPTORS = {
     "lab_histogram_3d":lab_histogram_3d,
     "ycrcb_histogram_1d":ycrcb_histogram_1d,
     "ycrcb_histogram_3d":ycrcb_histogram_3d,
-    "rgb_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=rgb_histogram_3d, max_level = 1),
-    "lab_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=lab_histogram_3d, max_level = 1)
+    "rgb_histogram_3d_blocks": partial(block_descriptor, descriptor_func=rgb_histogram_3d, num_blocks = 4),
+    "lab_histogram_3d_blocks": partial(block_descriptor, descriptor_func=lab_histogram_3d, num_blocks = 4),
+    "rgb_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=rgb_histogram_3d, max_level = 4),
+    "lab_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=lab_histogram_3d, max_level = 4)
     }
 
 def extract_features(image:np.ndarray, descriptor:str, bins:int, mask:np.ndarray=None) -> np.ndarray:

@@ -13,7 +13,7 @@ import multiprocessing.dummy as mp
 from distances import compute_distance
 from histograms import extract_features
 from evaluation import mapk
-from masks import extract_paintings_from_mask
+from masks import extract_paintings_from_mask, generate_text_mask
 
 def get_image_path_list(data_path:str, extension:str='jpg') -> List[Path]:
     """
@@ -129,7 +129,7 @@ def search(img_path:Path=None, descriptor:str='rgb_histogram_1d', metric:str="eu
     return result_list
 
 
-def search_batch(query_list:List[Path]=None, mask_list:List[Path]=None ,descriptor:str='rgb_histogram_1d', metric:str="euclidean", bins:int=64, k:int=10, multiple:bool=False) -> List[int]:
+def search_batch(query_list:List[Path]=None, mask_list:List[Path]=None, text_list=None ,descriptor:str='rgb_histogram_1d', metric:str="euclidean", bins:int=64, k:int=10, multiple:bool=False) -> List[int]:
     """
     Searches the reference dataset for most similar images to the
     query image
@@ -146,6 +146,9 @@ def search_batch(query_list:List[Path]=None, mask_list:List[Path]=None ,descript
         a list of lists indices of top k images in reference dataset
         that are most similar to query image
     """
+    if text_list is None:
+        #print("[WARNING] No text_list specified")
+        text_list = [None for l in query_list]
     
     # define particular descriptors and distance metrics to be used
     # so that you don't have to input the function arguments every 
@@ -156,35 +159,38 @@ def search_batch(query_list:List[Path]=None, mask_list:List[Path]=None ,descript
     def _extract_features_from_path_unique(_path):
         return extract_features_func(path2img(_path))
     
-    def _extract_features_from_path(_path):
-        return [extract_features_func(path2img(_path)), ]
+    def _extract_features_from_path(_path, textboxes):
+        img = path2img(_path)
+        text_mask = 1 - generate_text_mask(img.shape[:2], textboxes) # returns all 1's if textboxes == None
+        return [extract_features_func(img, mask = text_mask), ]
 
-    def _extract_features_from_path_mask(_path,_path_mask):
+    def _extract_features_from_path_mask(_path,_path_mask,textboxes):
         img, mask = path2img(_path), path2mask(_path_mask)
+        text_mask = 1 - generate_text_mask(mask.shape, textboxes)
         if multiple:
             masks = extract_paintings_from_mask(mask)
             #print(f"{_path_mask} - {len(masks)}")
-            return [extract_features_func(img, mask=m) 
+            return [extract_features_func(img, mask = ((text_mask != 0) & (m != 0)).astype(np.uint8)) 
                     for m in masks]
-        return [extract_features_func(img, mask = mask), ]
+        return [extract_features_func(img, mask = ((text_mask != 0) & (mask != 0)).astype(np.uint8)), ]
 
     result_list_of_lists = []
     with mp.Pool(processes=20) as p:
         if mask_list is not None:
-            query_descriptors = p.starmap(_extract_features_from_path_mask, [(query_path, mask_path) for query_path, mask_path in zip(query_list, mask_list)])
+            query_descriptors = p.starmap(_extract_features_from_path_mask, [params for params in zip(query_list, mask_list, text_list)])
         else:
-            query_descriptors = p.map(_extract_features_from_path, [query_path for query_path in query_list])
+            query_descriptors = p.starmap(_extract_features_from_path, [params for params in zip(query_list, text_list)])
             
         image_descriptors = p.map(_extract_features_from_path_unique, [ref_path for ref_path in museum_list])
         for q in range(len(query_list)):
-            query_list = []
+            qlist = []
             for i in range(len(query_descriptors[q])):
                 query_feature = query_descriptors[q][i]
                 dist = p.starmap(distance_func, [(query_feature, ref_feature) for ref_feature in image_descriptors])
                 nearest_indices = np.argsort(dist)[:k]
                 result_list = [index for index in nearest_indices]
-                query_list.append(result_list)
-            result_list_of_lists.append(query_list)
+                qlist.append(result_list)
+            result_list_of_lists.append(qlist)
     return result_list_of_lists
 
 def parse_args(args=sys.argv[1:]):
@@ -207,6 +213,10 @@ def parse_args(args=sys.argv[1:]):
     parser.add_argument(
         "--multiple", action="store_true",
         help = "whether several paintings can appear in the mask or not (with a current maximum of 2).")
+
+    parser.add_argument(
+        "--text", action="store_true",
+        help = "whether text bboxes will be loaded from 'text_boxes.pkl' file and removed from the image query.")
 
     parser.add_argument(
         "--museum_path","-r", default="/home/adityassrana/datatmp/Datasets/museum_dataset/processed/BBDD",
@@ -267,8 +277,14 @@ if __name__ == '__main__':
         # index the masks when required
         mask_list = get_image_path_list(query_path, extension='png')
         print(f'number of masks in query dataset is {len(mask_list)}')
+        assert len(mask_list) == len(query_list)
+       
+    text_list = None
+    if args.text:
+        with open(os.path.join(query_path, "text_boxes.pkl"), 'rb') as file:
+            text_list = pickle.load(file)
     
-    result_list_of_lists = search_batch(query_list = query_list, mask_list=mask_list, descriptor = args.descriptor, metric = args.metric, bins= args.bins, k=k, multiple=args.multiple)
+    result_list_of_lists = search_batch(query_list = query_list, mask_list=mask_list, descriptor = args.descriptor, metric = args.metric, bins= args.bins, k=k, multiple=args.multiple, text_list=text_list)
 
     map_k = mapk(ground_truth, result_list_of_lists, k=k)
     print(f'map@{k} for the current run is {map_k}')

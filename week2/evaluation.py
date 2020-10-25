@@ -111,6 +111,22 @@ def evaluate_mask(mask: np.ndarray, mask_gt: np.ndarray):
     
     return precision, recall, f1, tp, fp, fn, tn
 
+def evaluate_textboxes(gt_boxes, boxes):
+    assert len(gt_boxes) == len(boxes)
+    iou = 0
+    for i in range(len(boxes)):
+        max_dim = np.max(np.max(boxes[i]))
+        shape = (max_dim, max_dim)
+        gt_mask, mask = generate_text_mask(shape, gt_boxes[i]), generate_text_mask(shape, boxes[i])
+        iou += compute_iou2(gt_mask, mask)
+    return iou / len(boxes)
+
+def compute_iou(m1, m2):
+    m1 = m1.astype(np.uint8)
+    m2 = m2.astype(np.uint8)
+    overlap = (m1 != 0) & (m2 != 0) # Logical AND
+    union = (m1 != 0) | (m2 != 0) # Logical OR
+    return overlap.sum() / float(union.sum())
 
 
 if __name__ == '__main__':
