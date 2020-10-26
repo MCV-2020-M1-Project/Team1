@@ -21,3 +21,16 @@ def generate_binary_mask(mask):
     if not(np.unique(mask) == (0, 1)).all():
         mask = (mask == 255).astype(float)
     return mask
+
+
+def opening(m, size=(45, 45)):
+    kernel = np.ones(size, np.uint8) 
+    m = cv2.erode(m, kernel, iterations=1) 
+    m = cv2.dilate(m, kernel, iterations=1) 
+    return m
+
+def closing(m, size=(45, 45)):
+    kernel = np.ones(size, np.uint8) 
+    m = cv2.dilate(m, kernel, iterations=1) 
+    m = cv2.erode(m, kernel, iterations=1) 
+    return m

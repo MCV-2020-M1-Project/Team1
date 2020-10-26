@@ -332,7 +332,7 @@ if __name__ == '__main__':
 
 
     if not os.path.exists(args.query):
-        print(f"[ERROR] Query path '{args.query}' does not exists.")
+        print(f"[ERROR] Query path '{args.query}' does not exist.")
         exit()
     if not os.path.exists(args.output):
         print("Creating output folder...")
