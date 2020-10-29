@@ -301,11 +301,10 @@ DESCRIPTORS = {
     "ycrcb_histogram_3d":ycrcb_histogram_3d,
     "rgb_histogram_3d_blocks": partial(block_descriptor, descriptor_func=rgb_histogram_3d, num_blocks = 8),
     "lab_histogram_3d_blocks": partial(block_descriptor, descriptor_func=lab_histogram_3d, num_blocks = 8),
-    "ycrcb_histogram_3d_blocks": partial(block_descriptor, descriptor_func=ycrcb_histogram_3d, num_blocks = 8),
+    "ycrcb_histogram_3d_blocks": partial(block_descriptor, descriptor_func=ycrcb_histogram_3d, num_blocks =8),
     "hsv_histogram_3d_blocks": partial(block_descriptor, descriptor_func=hsv_histogram_3d, num_blocks = 8),
-
-    "rgb_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=rgb_histogram_3d, max_level = 4),
-    "lab_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=lab_histogram_3d, max_level = 4)
+    "rgb_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=rgb_histogram_3d, max_level = 8),
+    "lab_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=lab_histogram_3d, max_level = 8)
     }
 
 def extract_features(image:np.ndarray, descriptor:str, bins:int, mask:np.ndarray=None) -> np.ndarray:

@@ -147,7 +147,7 @@ def search_batch(query_list:List[Path]=None, mask_list:List[Path]=None, text_lis
         that are most similar to query image
     """
     if text_list is None:
-        #print("[WARNING] No text_list specified")
+        #print("[WARNING] No text_list specified")
         text_list = [None for l in query_list]
     
     # define particular descriptors and distance metrics to be used
