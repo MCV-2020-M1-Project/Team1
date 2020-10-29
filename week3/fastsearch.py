@@ -128,7 +128,6 @@ def search(img_path:Path=None, descriptor:str='rgb_histogram_1d', metric:str="eu
     result_list = [index for index in nearest_indices]
     return result_list
 
-
 def search_batch(query_list:List[Path]=None, mask_list:List[Path]=None, text_list=None ,descriptor:str='rgb_histogram_1d', metric:str="euclidean", bins:int=64, k:int=10, multiple:bool=False) -> List[int]:
     """
     Searches the reference dataset for most similar images to the

@@ -1,4 +1,4 @@
-# Week 2 API Usage
+# Week 3 API Usage
 
 ## Content Based Image Retrieval
 
@@ -76,7 +76,7 @@ optional arguments:
 ````
 ## Visualizing Results
 
-Use commandd line argument "-v" to plot the top results for a random query image.
+Use command line argument "-v" to plot the top results for a random query image.
 
 ````python fastsearch.py -v````
 
