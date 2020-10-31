@@ -132,7 +132,6 @@ def search(img_path:Path=None, descriptor:str='rgb_histogram_1d', metric:str="eu
 
 
 
-
 def read_GT_txt(img_path):
     txt_path = img_path.replace('jpg', 'txt')
     if not os.path.exists(txt_path):
