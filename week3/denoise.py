@@ -264,7 +264,7 @@ if __name__ == '__main__':
     args = parse_args()
     print(args)
     query_path = args.query_path
-    non_augmented_path = args.non_augmented_path
+    non_augmented_path = query_path + "/non_augmented"
     verbose = args.verbose
     show_images = args.show_images
     save_all_images = args.save_all_images
