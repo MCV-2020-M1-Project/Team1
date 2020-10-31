@@ -233,6 +233,7 @@ def search_batch(museum_list:List[Path], query_list:List[Path], mask_list:List[P
         all_results = []
         weights = []
         if query_params["color"] is not None:
+            print('color being used')
             extract_features_func = partial(extract_features, descriptor=query_params["color"]["descriptor"],bins=query_params["color"]["bins"])
             color_distance_func = partial(compute_distance, metric=query_params["color"]["metric"])
             # descriptors extraction
@@ -248,6 +249,7 @@ def search_batch(museum_list:List[Path], query_list:List[Path], mask_list:List[P
             all_results.append(results)
             
         if query_params["texture"] is not None:
+            print('texture being used')
             extract_features_func = partial(extract_textures, descriptor=query_params["texture"]["descriptor"],bins=query_params["texture"]["bins"])
             color_distance_func = partial(compute_distance, metric=query_params["texture"]["metric"])
             # descriptors extraction
@@ -263,6 +265,7 @@ def search_batch(museum_list:List[Path], query_list:List[Path], mask_list:List[P
             all_results.append(results)
             
         if query_params["text"] is not None:
+            print('text being used')
             text_distance_func = partial(compare_texts, similarity=query_params["text"]["metric"])
             # descriptors extraction
             query_descriptors = p.starmap(extract_txt, zip(queries, text_list))
@@ -293,7 +296,6 @@ def search_batch(museum_list:List[Path], query_list:List[Path], mask_list:List[P
             result_list_of_lists.append(qlist)
             
     return result_list_of_lists
-
 
 def parse_args(args=sys.argv[1:]):
     parser = argparse.ArgumentParser(description='Content Based Image Retrieval')

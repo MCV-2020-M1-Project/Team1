@@ -291,7 +291,7 @@ def pyramid_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:
         features.extend(block_descriptor(image, descriptor_func, bins, mask, num_blocks))
     return np.stack(features).flatten()  
 
-def lbp_histogram(image:np.ndarray, points:int=8, radius:float=1.0, bins:int=8, mask:np.ndarray=None) -> np.ndarray:
+def lbp_histogram(image:np.ndarray, points:int=4, radius:float=1.0, bins:int=8, mask:np.ndarray=None) -> np.ndarray:
     """
     Extract LBP descriptors after dividing image in non-overlapping blocks,
     computing histograms for each block and then concatenating them
