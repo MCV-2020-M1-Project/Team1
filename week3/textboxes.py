@@ -234,7 +234,7 @@ def generate_text_mask(shape, textboxes):
 
 
 TEXTBOX_RETRIEVERS = {
-    "v0": generate_text_mask
+    "v0": extract_textbox
 }
 
 
@@ -287,7 +287,7 @@ if __name__ == '__main__':
         
     bboxes = []
     for i in tqdm(range(len(masks))):
-        bboxes.append(extract_textbox(images[i], mask=masks[i]))
+        bboxes.append(TEXTBOX_RETRIEVERS[args.retriever](images[i], mask=masks[i]))
         
     path = os.path.join("." if not args.masks else args.mask, f"{args.query}_{args.retriever}.pkl")
     with open(path, 'wb') as file:

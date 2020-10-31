@@ -14,6 +14,8 @@ from distances import compute_distance
 from histograms import extract_features
 from evaluation import mapk
 from masks import extract_paintings_from_mask, generate_text_mask
+from text_analysis import extract_text, compare_texts
+from textboxes import generate_text_mask
 
 def get_image_path_list(data_path:str, extension:str='jpg') -> List[Path]:
     """
@@ -129,7 +131,73 @@ def search(img_path:Path=None, descriptor:str='rgb_histogram_1d', metric:str="eu
     return result_list
 
 
-def search_batch(query_list:List[Path]=None, mask_list:List[Path]=None, text_list=None ,descriptor:str='rgb_histogram_1d', metric:str="euclidean", bins:int=64, k:int=10, multiple:bool=False) -> List[int]:
+
+
+def read_GT_txt(img_path):
+    txt_path = img_path.replace('jpg', 'txt')
+    if not os.path.exists(txt_path):
+        print(f"ERROR: path '{txt_path}' does not exist.")
+
+    with open(txt_path, "r") as f:
+        txt = f.readline()
+        split = txt.split("'")
+        if len(split) > 2:
+            return split[1]
+    return None
+
+def extract_txt(queries, textboxes):
+    #print(textboxes)
+    #print(f"{len(textboxes)} VS {len(queries)}")
+    texts = []
+    if len(queries) == len(textboxes):
+        for (img, mask), txt in zip(queries, textboxes):
+            min_x, min_y, max_x, max_y = txt
+            extracted = extract_text(img[min_y:max_y, min_x:max_x], query_params["text"]["extractor"])
+            texts.append(extracted if extracted != "" else None)
+    else:
+        for img, mask in queries:
+            found = False
+            i = 0
+            while not found and i < len(textboxes):
+                tb = textboxes[i]
+                found = mask[tb[1]-1, tb[0]] != 0
+                if not found:
+                    i+=1
+
+            if not found:
+                texts.append(None)
+            else:
+                min_x, min_y, max_x, max_y = textboxes[i]
+                txt = img[min_y:max_y, min_x:max_x]
+                extracted = extract_text(txt, query_params["text"]["extractor"])
+                texts.append(extracted if extracted != "" else None)
+
+    return texts
+
+# we need img, mask, text
+def extract_color_metric(db_img, query_img, query_mask, query_txtboxes, params):
+    
+    
+    query_features = extract_features(image=query_img, descriptor=params["descriptor"], bins=params["bins"], mask=query_mask)
+    db_features = extract_features(image=query_img, descriptor=params["descriptor"], bins=params["bins"])
+    
+    return compute_distance(query_features, db_features, metric=params["metric"])
+
+def _extract_image_and_mask_from_path(img_path, mask_path, textboxes, multiple):
+    img = path2img(img_path)
+    if mask_path is None:
+        text_mask = 1 - generate_text_mask(img.shape[:2], textboxes) # returns all 1's if textboxes == None
+        return [(img, text_mask), ]
+
+    mask = path2mask(mask_path)
+    text_mask = 1 - generate_text_mask(mask.shape, textboxes)
+    if multiple:
+        masks = extract_paintings_from_mask(mask)
+        return [(img, ((text_mask != 0) & (m != 0)).astype(np.uint8)) for m in masks]
+    return [(img, ((text_mask != 0) & (mask != 0)).astype(np.uint8)), ]
+
+
+def search_batch(museum_list:List[Path], query_list:List[Path], mask_list:List[Path], text_list, query_params, k=10) -> List[int]:
     """
     Searches the reference dataset for most similar images to the
     query image
@@ -137,65 +205,97 @@ def search_batch(query_list:List[Path]=None, mask_list:List[Path]=None, text_lis
     Args:
         query_list: list containing path to all query images
         mask_list: list containing path to masks of all query images
-        descriptor: method used to compute features
-        metric: similarity measure to compare images
-        bins: number of bins to use for histogram
-        k: to return top k images that are most similar
+        text_list: list containing bboxes for each image
+        query_params: dictionary containing info for all the features extractors used
 
     Returns:
         a list of lists indices of top k images in reference dataset
         that are most similar to query image
     """
     if text_list is None:
-        #print("[WARNING] No text_list specified")
+        if query_params["text"] is not None:
+            print("[WARNING] No text_list specified => text metric will not be used at all")
         text_list = [None for l in query_list]
     
-    # define particular descriptors and distance metrics to be used
-    # so that you don't have to input the function arguments every 
-    # time you call the function
-    extract_features_func = partial(extract_features, descriptor=descriptor,bins=bins)
-    distance_func = partial(compute_distance, metric=metric)
+    if mask_list is None:
+        if query_params["masks"] is not None:
+            print("[WARNING] No mask_list specified => masks will not be used at all")
+        mask_list = [None for l in query_list]
     
-    def _extract_features_from_path_unique(_path):
-        return extract_features_func(path2img(_path))
-    
-    def _extract_features_from_path(_path, textboxes):
-        img = path2img(_path)
-        text_mask = 1 - generate_text_mask(img.shape[:2], textboxes) # returns all 1's if textboxes == None
-        return [extract_features_func(img, mask = text_mask), ]
-
-    def _extract_features_from_path_mask(_path,_path_mask,textboxes):
-        img, mask = path2img(_path), path2mask(_path_mask)
-        text_mask = 1 - generate_text_mask(mask.shape, textboxes)
-        if multiple:
-            masks = extract_paintings_from_mask(mask)
-            #print(f"{_path_mask} - {len(masks)}")
-            return [extract_features_func(img, mask = ((text_mask != 0) & (m != 0)).astype(np.uint8)) 
-                    for m in masks]
-        return [extract_features_func(img, mask = ((text_mask != 0) & (mask != 0)).astype(np.uint8)), ]
-
     result_list_of_lists = []
     with mp.Pool(processes=20) as p:
-        if mask_list is not None:
-            query_descriptors = p.starmap(_extract_features_from_path_mask, [params for params in zip(query_list, mask_list, text_list)])
-        else:
-            query_descriptors = p.starmap(_extract_features_from_path, [params for params in zip(query_list, text_list)])
+        queries = p.starmap(_extract_image_and_mask_from_path, 
+                            [(query_list[q], 
+                              mask_list[q], 
+                              text_list[q], 
+                              query_params["masks"] and query_params["masks"]["multiple"]) 
+                             for q in range(len(query_list))])
+        
+        all_results = []
+        weights = []
+        if query_params["color"] is not None:
+            extract_features_func = partial(extract_features, descriptor=query_params["color"]["descriptor"],bins=query_params["color"]["bins"])
+            color_distance_func = partial(compute_distance, metric=query_params["color"]["metric"])
+            # descriptors extraction
+            query_descriptors = p.map(lambda query: [extract_features_func(img, mask=m) for (img, m) in query], queries)
+            image_descriptors = p.map(lambda path: extract_features_func(path2img(path)), museum_list)
             
-        image_descriptors = p.map(_extract_features_from_path_unique, [ref_path for ref_path in museum_list])
-        for q in range(len(query_list)):
+            # comparison against database. Score is weighted with the value from params.
+            results = [[p.starmap(lambda q, db: query_params["color"]["weight"] * color_distance_func(q, db), 
+                                 [(query_desc, db_desc) for db_desc in image_descriptors])
+                       for query_desc in query_descs]
+                       for query_descs in query_descriptors]
+            
+            all_results.append(results)
+            
+        if query_params["texture"] is not None:
+            # ADITYA, you go here!
+            pass
+            
+        if query_params["text"] is not None:
+            text_distance_func = partial(compare_texts, similarity=query_params["text"]["metric"])
+            # descriptors extraction
+            query_descriptors = p.starmap(extract_txt, zip(queries, text_list))
+            image_descriptors = p.map(read_GT_txt, museum_list)
+            # comparison against database. Score is weighted with the value from params.
+            results = [[p.starmap(lambda q, db: query_params["text"]["weight"] * (text_distance_func(q, db)), 
+                                 [(query_desc, db_desc) for db_desc in image_descriptors])
+                       for query_desc in query_descs]
+                       for query_descs in query_descriptors]
+            
+            all_results.append(results)
+        
+        if len(all_results) == 0:
+            print("[ERROR] You did not specify any feature extraction method.")
+            return None
+            
+        # we sum the color/text/textures scores for each query and retrieve the best ones
+        dist = np.sum(np.array(all_results), axis=0)
+        for q in range(len(queries)):
             qlist = []
-            for i in range(len(query_descriptors[q])):
-                query_feature = query_descriptors[q][i]
-                dist = p.starmap(distance_func, [(query_feature, ref_feature) for ref_feature in image_descriptors])
+            for sq in range(len(queries[q])):
+                dist = np.array(all_results[0][q][sq])
+                for f in range(1, len(all_results)):
+                    dist += all_results[f][q][sq]
                 nearest_indices = np.argsort(dist)[:k]
                 result_list = [index for index in nearest_indices]
                 qlist.append(result_list)
             result_list_of_lists.append(qlist)
+            
     return result_list_of_lists
+
 
 def parse_args(args=sys.argv[1:]):
     parser = argparse.ArgumentParser(description='Content Based Image Retrieval')
+    
+    parser.add_argument(
+        "--museum_path","-r", default="/home/adityassrana/datatmp/Datasets/museum_dataset/processed/BBDD",
+        help = "path to reference museum dataset. Example input: 'data/BBDD'")
 
+    parser.add_argument(
+        "--query_path","-q", default="/home/adityassrana/datatmp/Datasets/museum_dataset/processed/qsd1_w1",
+        help = "path to query museum dataset. Example input: 'data/qsd1_w1'")
+    
     parser.add_argument(
         "--pickle","-p", action="store_true",
         help = "Generate pickle file with results")
@@ -204,6 +304,7 @@ def parse_args(args=sys.argv[1:]):
         "--plot","-v", action="store_true",
         help = "show retrieval results for a random query image")
 
+    # MODES THAT CAN BE USED
     parser.add_argument(
         "--use_masks", action="store_true",
         help = "whether to use masks for histogram generation or not. Using masks helps \
@@ -211,23 +312,33 @@ def parse_args(args=sys.argv[1:]):
                 background and also removing any text present on the painting")
 
     parser.add_argument(
-        "--multiple", action="store_true",
+        "--filter_text", action="store_true",
+        help = "whether textboxes will be loaded from 'text_boxes.pkl' file and removed from the color and texture feature extractions.")
+
+    parser.add_argument(
+        "--use_color", action="store_true",
+        help = "whether color matching will be used to do the retrieval.")
+
+    parser.add_argument(
+        "--use_text", action="store_true",
+        help = "whether author matching will be used to do the retrieval.")
+    
+    parser.add_argument(
+        "--use_texture", action="store_true",
+        help = "whether texture matching will be used to do the retrieval.")
+    
+    # MASKS
+    parser.add_argument(
+        "--masks_multiple", action="store_true",
         help = "whether several paintings can appear in the mask or not (with a current maximum of 2).")
 
+    # COLOR
     parser.add_argument(
-        "--text", action="store_true",
-        help = "whether text bboxes will be loaded from 'text_boxes.pkl' file and removed from the image query.")
-
+        "--color_weight","-cow", type=float, default="0.5",
+        help = "weight for the color matching")
+    
     parser.add_argument(
-        "--museum_path","-r", default="/home/adityassrana/datatmp/Datasets/museum_dataset/processed/BBDD",
-        help = "path to reference museum dataset. Example input: 'data/BBDD'")
-
-    parser.add_argument(
-        "--query_path","-q", default="/home/adityassrana/datatmp/Datasets/museum_dataset/processed/qsd1_w1",
-        help = "path to query museum dataset. Example input: 'data/qsd1_w1'")
-
-    parser.add_argument(
-        "--descriptor","-d", default="rgb_histogram_1d",
+        "--color_descriptor","-d", default="rgb_histogram_1d",
         help = "descriptor for extracting features from image. DESCRIPTORS AVAILABLE: 1D and 3D Histograms - \
                 gray_historam, rgb_histogram_1d, rgb_histogram_3d, hsv_histogram_1d, hsv_histogram_3d, lab_histogram_1d,\
                 lab_histogram_3d, ycrcb_histogram_1d, ycrcb_histogram_3d. \
@@ -235,15 +346,35 @@ def parse_args(args=sys.argv[1:]):
                 lab_histogram_3d gives us the best results.")
 
     parser.add_argument(
-        "--metric","-m", default="euclidean",
+        "--color_metric","-m", default="hellinger",
         help = "similarity measure to compare images. METRICS AVAILABLE: \
                 cosine, manhattan, euclidean, intersect, kl_div, js_div bhattacharyya, hellinger, chisqr, correl. \
                 hellinger and js_div give the best results.")
 
     parser.add_argument(
-        "--bins","-b", default="64", type=int,
+        "--color_bins","-b", default="8", type=int,
         help = "number of bins to use for histograms")
+    
+    # TEXT
+    parser.add_argument(
+        "--text_weight","-txw", type=float, default="0.5",
+        help = "weight for the text matching")
+    
+    parser.add_argument(
+        "--text_reader", type=str, default="tesseract",
+        help = "OCR algorithm used to extract the text from inside the textbox. READERS AVAILABLE: tesseract")
+    
+    parser.add_argument(
+        "--text_metric", type=str, default="ratcliff_obershelp",
+        help = "Metric used to compare extracted text with paintings text from the database. METRICS AVAILABLE: ratcliff_obershelp, levenshtein, cosine")
+    
+    # TEXTURES
+    parser.add_argument(
+        "--texture_weight","-tuw", type=float, default="0.0",
+        help = "weight for the color matching")
 
+    
+    # EVALUATION
     parser.add_argument(
         "--map_k","-k", default="5", type=int,
         help = "Mean average precision of top-K results")
@@ -251,9 +382,42 @@ def parse_args(args=sys.argv[1:]):
     args = parser.parse_args(args)
     return args
 
+
+def from_args_to_query_params(args):
+    ordered_args = {
+        "masks": None, "color": None, "text": None, "texture": None,
+        "filter_text": args.filter_text
+    }
+    if args.masks_multiple:
+        ordered_args["masks"] = {
+            "multiple": args.masks_multiple
+        }
+    if args.use_color:
+        ordered_args["color"] = {
+            "weight": args.color_weight,
+            "descriptor": args.color_descriptor,
+            "metric": args.color_metric,
+            "bins": args.color_bins,
+        }
+    if args.use_text:
+        ordered_args["text"] = {
+            "weight": args.text_weight,
+            "extractor": args.text_reader,
+            "metric": args.text_metric,
+        }
+    if args.use_texture:
+        ordered_args["texture"] = {
+            "weight": args.texture_weight,
+            
+        }
+    return ordered_args
+        
+
 if __name__ == '__main__':
     args = parse_args()
     print(args)
+    query_params = from_args_to_query_params(args)
+    print(query_params)
 
     # path to data
     museum_path = args.museum_path
@@ -280,18 +444,26 @@ if __name__ == '__main__':
         assert len(mask_list) == len(query_list)
        
     text_list = None
-    if args.text:
-        with open(os.path.join(query_path, "text_boxes.pkl"), 'rb') as file:
+    textboxes_path = os.path.join(query_path, "text_boxes.pkl")
+    if (args.filter_text or args.use_text) and os.path.exists(textboxes_path):
+        with open(textboxes_path, 'rb') as file:
             text_list = pickle.load(file)
     
-    result_list_of_lists = search_batch(query_list = query_list, mask_list=mask_list, descriptor = args.descriptor, metric = args.metric, bins= args.bins, k=k, multiple=args.multiple, text_list=text_list)
+    result_list_of_lists = search_batch(museum_list, 
+                                        query_list, 
+                                        mask_list, 
+                                        text_list, 
+                                        query_params,
+                                        k = k)
 
+    
     map_k = mapk(ground_truth, result_list_of_lists, k=k)
     print(f'map@{k} for the current run is {map_k}')
     if k > 1:
         map_1 = mapk(ground_truth, result_list_of_lists, k=1)
         print(f'map@{1} for the current run is {map_1}')
 
+        
     # extra functions for pickling and visualizing results
     # use -p in cmdline args
     if args.pickle:
