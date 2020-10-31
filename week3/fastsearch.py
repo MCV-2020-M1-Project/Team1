@@ -11,7 +11,7 @@ from functools import partial
 import multiprocessing.dummy as mp
 
 from distances import compute_distance
-from histograms import extract_features
+from histograms import extract_features, extract_textures
 from evaluation import mapk
 from masks import extract_paintings_from_mask, generate_text_mask
 from text_analysis import extract_text, compare_texts
@@ -248,8 +248,19 @@ def search_batch(museum_list:List[Path], query_list:List[Path], mask_list:List[P
             all_results.append(results)
             
         if query_params["texture"] is not None:
-            # ADITYA, you go here!
-            pass
+            extract_features_func = partial(extract_textures, descriptor=query_params["texture"]["descriptor"],bins=query_params["texture"]["bins"])
+            color_distance_func = partial(compute_distance, metric=query_params["texture"]["metric"])
+            # descriptors extraction
+            query_descriptors = p.map(lambda query: [extract_features_func(img, mask=m) for (img, m) in query], queries)
+            image_descriptors = p.map(lambda path: extract_features_func(path2img(path)), museum_list)
+            
+            # comparison against database. Score is weighted with the value from params.
+            results = [[p.starmap(lambda q, db: query_params["texture"]["weight"] * color_distance_func(q, db), 
+                                 [(query_desc, db_desc) for db_desc in image_descriptors])
+                       for query_desc in query_descs]
+                       for query_descs in query_descriptors]
+            
+            all_results.append(results)
             
         if query_params["text"] is not None:
             text_distance_func = partial(compare_texts, similarity=query_params["text"]["metric"])
@@ -333,11 +344,11 @@ def parse_args(args=sys.argv[1:]):
 
     # COLOR
     parser.add_argument(
-        "--color_weight","-cow", type=float, default="0.5",
+        "--color_weight","-cow", type=float, default="0.33",
         help = "weight for the color matching")
     
     parser.add_argument(
-        "--color_descriptor","-d", default="rgb_histogram_1d",
+        "--color_descriptor", default="rgb_histogram_1d",
         help = "descriptor for extracting features from image. DESCRIPTORS AVAILABLE: 1D and 3D Histograms - \
                 gray_historam, rgb_histogram_1d, rgb_histogram_3d, hsv_histogram_1d, hsv_histogram_3d, lab_histogram_1d,\
                 lab_histogram_3d, ycrcb_histogram_1d, ycrcb_histogram_3d. \
@@ -345,18 +356,18 @@ def parse_args(args=sys.argv[1:]):
                 lab_histogram_3d gives us the best results.")
 
     parser.add_argument(
-        "--color_metric","-m", default="hellinger",
+        "--color_metric", default="hellinger",
         help = "similarity measure to compare images. METRICS AVAILABLE: \
                 cosine, manhattan, euclidean, intersect, kl_div, js_div bhattacharyya, hellinger, chisqr, correl. \
                 hellinger and js_div give the best results.")
 
     parser.add_argument(
-        "--color_bins","-b", default="8", type=int,
+        "--color_bins", default="8", type=int,
         help = "number of bins to use for histograms")
     
     # TEXT
     parser.add_argument(
-        "--text_weight","-txw", type=float, default="0.5",
+        "--text_weight","-txw", type=float, default="0.33",
         help = "weight for the text matching")
     
     parser.add_argument(
@@ -369,8 +380,26 @@ def parse_args(args=sys.argv[1:]):
     
     # TEXTURES
     parser.add_argument(
-        "--texture_weight","-tuw", type=float, default="0.0",
+        "--texture_weight","-tuw", type=float, default="0.33",
         help = "weight for the color matching")
+    
+    parser.add_argument(
+        "--texture_descriptor", default="lbp_histogram_blocks",
+        help = "descriptor for extracting textures from image. DESCRIPTORS AVAILABLE: 1D and 3D Histograms - \
+                gray_historam, rgb_histogram_1d, rgb_histogram_3d, hsv_histogram_1d, hsv_histogram_3d, lab_histogram_1d,\
+                lab_histogram_3d, ycrcb_histogram_1d, ycrcb_histogram_3d. \
+                Block and Pyramidal Histograms - lab_histogram_3d_pyramid and more.\
+                lab_histogram_3d gives us the best results.")
+
+    parser.add_argument(
+        "--texture_metric", default="hellinger",
+        help = "textures similarity measure to compare images. METRICS AVAILABLE: \
+                cosine, manhattan, euclidean, intersect, kl_div, js_div bhattacharyya, hellinger, chisqr, correl. \
+                hellinger and js_div give the best results.")
+
+    parser.add_argument(
+        "--texture_bins", default="8", type=int,
+        help = "number of bins to use for textures histograms")
 
     
     # EVALUATION
@@ -407,6 +436,9 @@ def from_args_to_query_params(args):
     if args.use_texture:
         ordered_args["texture"] = {
             "weight": args.texture_weight,
+            "descriptor": args.texture_descriptor,
+            "metric": args.texture_metric,
+            "bins": args.texture_bins,
             
         }
     return ordered_args
@@ -414,7 +446,6 @@ def from_args_to_query_params(args):
 
 if __name__ == '__main__':
     args = parse_args()
-    print(args)
     query_params = from_args_to_query_params(args)
     print(query_params)
 
