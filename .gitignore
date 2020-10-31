@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .vscode
 resources/
+week3/outputs/
 
 # Jupyter Notebook
 .ipynb_checkpoints
