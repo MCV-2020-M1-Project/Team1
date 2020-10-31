@@ -209,7 +209,7 @@ def eval_best_denoise(writer, imgID, img, non_augmented_img, original_sigma, sav
         current_sigma = image_sigma(cv2.cvtColor(
             denoised_img, cv2.COLOR_BGR2GRAY, dst=None))
 
-        cv2.imwrite(f"outputs/partials/{idx}_{denoise_method}.jpg", denoised_img)
+        cv2.imwrite(f"outputs/partials/{denoise_method}/{str(idx).zfill(5)}.jpg", denoised_img)
         # current_sigma = estimate_sigma(denoised_img, multichannel = True, average_sigmas=True)
         # print(f'{denoise_method} |\t\t{current_sigma}')
         
@@ -268,6 +268,7 @@ if __name__ == '__main__':
     verbose = args.verbose
     show_images = args.show_images
     save_all_images = args.save_all_images
+    save_resulting_images = args.save_resulting_images
 
     img_path_list = fastsearch.get_image_path_list(query_path)
     non_augmented_img_path_list = fastsearch.get_image_path_list(
@@ -285,6 +286,30 @@ if __name__ == '__main__':
 
     denoised_img_list = []
     subidx = 0
+
+    if save_all_images | save_resulting_images:
+        if not os.path.exists("outputs"):
+            os.mkdir("outputs")
+
+    if save_resulting_images:
+        resulting_images_dir = "outputs/results"
+        print(f"Saving resulting images to path: {resulting_images_dir}")
+        if not os.path.exists(resulting_images_dir):
+            os.makedirs(resulting_images_dir)
+
+    if save_all_images:
+        if not os.path.exists("outputs/partials"):
+            os.makedirs("outputs/partials")
+        
+        partial_imgs_dir = "outputs/partials"
+        print(f"Saving partial images to path: {partial_imgs_dir}/denoising_method/")
+        
+        denoise_method_folders = os.path.join("outputs/", "partials")
+        for denoise_method in DENOISING_METHODS:
+            denoising_method_subfolder = os.path.join(denoise_method_folders, denoise_method)
+            if not os.path.exists(denoising_method_subfolder):
+                os.makedirs(denoising_method_subfolder)
+        
 
     #### initialize data dump file ########
     denoise_data_dump_file = "denoise_data_dump.txt"
