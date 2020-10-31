@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 import os
 from functools import partial
+from skimage.feature import local_binary_pattern
+import multiprocessing.dummy as mp
 
 OPENCV_COLOR_SPACES = {
     "RGB": cv2.COLOR_BGR2RGB,
@@ -227,7 +229,7 @@ def ycrcb_histogram_3d(image:np.ndarray, bins:int=8, mask:np.ndarray=None) -> np
     hist = cv2.normalize(hist, hist)
     return hist.flatten()
 
-def block_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:int=256, mask:np.ndarray=None, num_blocks:int=1) -> np.ndarray:
+def block_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:int=8, mask:np.ndarray=None, num_blocks:int=1) -> np.ndarray:
     """
     Extract descriptors after dividing image in non-overlapping blocks,
     computing histograms for each block and then concatenating them
@@ -268,7 +270,7 @@ def block_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:in
             features.extend(block_feature)
     return np.stack(features).flatten()
 
-def pyramid_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:int=256, mask:np.ndarray=None, max_level:int=1) -> np.ndarray:
+def pyramid_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:int=8, mask:np.ndarray=None, max_level:int=1) -> np.ndarray:
     """
     Compute block histogram features at different levels
 
@@ -285,9 +287,48 @@ def pyramid_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:
     """
     features = []
     for level in range(1, max_level+1):
-        num_blocks = 2 ** (level-1)
+        num_blocks = 4 ** (level-1)
         features.extend(block_descriptor(image, descriptor_func, bins, mask, num_blocks))
     return np.stack(features).flatten()  
+
+def lbp_histogram(image:np.ndarray, points:int=8, radius:float=1.0, bins:int=8, mask:np.ndarray=None) -> np.ndarray:
+    """
+    Extract LBP descriptors after dividing image in non-overlapping blocks,
+    computing histograms for each block and then concatenating them
+
+    Args:
+        image: (H x W x C) 3D BGR image array of type np.uint8
+        points: number of circularly symmetric neighbour set points (quantization of the angular space)
+        radius: radius of circle (spatial resolution of the operator)
+        bins: number of bins to use for histogram
+        mask: check _descriptor(first function in file)
+
+    Returns:
+        Histogram features flattened into a 
+        1D array of type np.float32
+        
+    EXTRA DOCUMENTATION FOR PERSONAL USE
+        For the method DEFAULT and points 8: 
+         max: 255.0, min: 0.0, unique_values: 212
+        For the method ROR: 
+         max: 255.0, min: 0.0, unique_values: 34
+        For the method UNIFORM: 
+         max: 9.0, min: 0.0, unique_values: 10
+        For the method NRI_UNIFORM: 
+         max: 58.0, min: 0.0, unique_values: 59
+        
+        'default','ror','nri_uniform' methods are not super scalable 
+         and hence were not considered in the final
+         implementation.
+    """    
+    # image --> grayscale --> lbp --> histogram
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    image = (local_binary_pattern(image, points, radius, method="uniform")).astype(np.uint8)
+
+    bins = points + 2
+    hist = cv2.calcHist([image],[0], mask, [bins], [0, bins])
+    hist = cv2.normalize(hist, hist)
+    return hist.flatten()
 
 DESCRIPTORS = {
     "gray_histogram":gray_historam,
@@ -299,10 +340,14 @@ DESCRIPTORS = {
     "lab_histogram_3d":lab_histogram_3d,
     "ycrcb_histogram_1d":ycrcb_histogram_1d,
     "ycrcb_histogram_3d":ycrcb_histogram_3d,
-    "rgb_histogram_3d_blocks": partial(block_descriptor, descriptor_func=rgb_histogram_3d, num_blocks = 8),
-    "lab_histogram_3d_blocks": partial(block_descriptor, descriptor_func=lab_histogram_3d, num_blocks = 8),
-    "rgb_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=rgb_histogram_3d, max_level = 4),
-    "lab_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=lab_histogram_3d, max_level = 4)
+    "rgb_histogram_3d_blocks": partial(block_descriptor, descriptor_func=rgb_histogram_3d, num_blocks = 2),
+    "lab_histogram_3d_blocks": partial(block_descriptor, descriptor_func=lab_histogram_3d, num_blocks = 1),
+    "rgb_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=rgb_histogram_3d, max_level = 1),
+    "lab_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=lab_histogram_3d, max_level = 1)
+    }
+
+TEXTURES = {
+    "lbp_histogram_blocks": partial(block_descriptor, descriptor_func=lbp_histogram, num_blocks = 8)
     }
 
 def extract_features(image:np.ndarray, descriptor:str, bins:int, mask:np.ndarray=None) -> np.ndarray:
@@ -332,8 +377,32 @@ def extract_features(image:np.ndarray, descriptor:str, bins:int, mask:np.ndarray
     """
     return DESCRIPTORS[descriptor](image=image,bins=bins,mask=mask)
 
+def extract_textures(image:np.ndarray, descriptor:str, bins:int, mask:np.ndarray=None) -> np.ndarray:
+    """
+    Extract features from image based on texture descriptor of choice
+
+    DESCRIPTORS AVAILABLE
+    "lbp_histogram_blocks"
+
+    Args:
+        image: (H x W x C) 3D BGR image array of type np.uint8
+        descriptor: method used to compute features
+        bins: number of bins to use for histogram
+        mask: check _descriptor(first function in file)
+
+    Returns: 
+        1D  array of type np.float32 containing histogram
+        feautures of image
+    """
+    return TEXTURES[descriptor](image=image,bins=bins,mask=mask)
+
 if __name__ == '__main__':
     img = cv2.imread(os.path.join('images','barca.png'))
     print(f'image shape: {img.shape}')
-    for key,bins in zip(DESCRIPTORS,[256,256,8,256,8,256,8,256,8,8,8]):
+    print('COLOR DESCRIPTORS')
+    for key,bins in zip(DESCRIPTORS,[256,256,8,256,8,256,8,256,8,8,8,8,8]):
         print(f'descriptor: {key}, feature_length = {extract_features(img, descriptor=key, bins=bins).shape}')
+
+    print('TEXTURE DESCRIPTORS')
+    for key,bins in zip(TEXTURES,[8]):
+        print(f'descriptor: {key}, feature_length = {extract_textures(img, descriptor=key, bins=bins).shape}')
