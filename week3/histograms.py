@@ -330,10 +330,20 @@ def lbp_histogram(image:np.ndarray, points:int=24, radius:float=3.0, bins:int=8,
     hist = cv2.normalize(hist, hist)
     return hist.flatten()
 
-def dct_coefficients(image:np.ndarray, bins:int=8, mask:np.ndarray=None, num_coeff:int=8) -> np.ndarray:
+def dct_coefficients(image:np.ndarray, bins:int=8, mask:np.ndarray=None, num_coeff:int=4) -> np.ndarray:
     # image --> grayscale --> DCT --> get top N coefficients using zig-zag scan
     """
     Extract DCT coefficients from image. This descriptor will be clubbed with a block descriptor
+
+    Args:
+        image: (H x W x C) 3D BGR image array of type np.uint8
+        num_coeff: number of coefficents in dct_block to use through zig-zag scan
+        bins: N.A. here, but present to make our api compatible with the function
+        mask: check _descriptor(first function in file)
+
+    Returns:
+        DCT features flattened into a 
+        1D array of type np.float32
     """    
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
