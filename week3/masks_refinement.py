@@ -69,6 +69,9 @@ def apply_filters(mask, filters):
         num_labels, labels = cv2.connectedComponents(mask.astype(np.uint8))
         for lab in range(1, num_labels):      
             m = (labels == lab).astype(np.uint8)
+            _,_, w, h = cv2.boundingRect(m)
+            if w / mask.shape[1] < 0.15 or h / mask.shape[1] < 0.15:
+                continue
             final_mask += f(m).astype(np.uint8)
         mask = final_mask
     return final_mask

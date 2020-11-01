@@ -13,6 +13,7 @@ import argparse
 import time
 from tqdm import tqdm
 from utils import closing
+from evaluation import compute_iou
 
 def evaluate_textboxes(gt_boxes, boxes):
     """
@@ -244,7 +245,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_masks', action="store_true", help="If masks are to be used.")
     parser.add_argument('--masks', help="Path where masks are located. If empty, masks will be retrieved from query folder.", type=str)
     parser.add_argument('--retriever', help="Textbox retriever to use.", type=str, choices=list(TEXTBOX_RETRIEVERS.keys()),)
-    parser.add_argument('--output_file', help="Folder where output file 'text_boxes_{VERSION}.pkl' file will be stored.", type=str)
+    parser.add_argument('--output', help="Folder where output file 'text_boxes_{VERSION}.pkl' file will be stored.", type=str)
     args = parser.parse_args()
 
 
@@ -260,9 +261,9 @@ if __name__ == '__main__':
         print("[WARNING] Masks path unspecified... The masks inside query folder will be used...")
         masks_folder = args.query
         
-    if args.output_file  and not os.path.exists(args.output_file):
+    if args.output  and not os.path.exists(args.output):
         print(f"Creating output folder '{args.output}'...")
-        os.mkdir(args.output_file)
+        os.mkdir(args.output)
 
 
     print(f"Evaluating with textbox retriever >{args.retriever}<...")
@@ -289,8 +290,8 @@ if __name__ == '__main__':
     for i in tqdm(range(len(masks))):
         bboxes.append(TEXTBOX_RETRIEVERS[args.retriever](images[i], mask=masks[i]))
         
-    path = os.path.join("." if not args.masks else args.mask, f"{args.query}_{args.retriever}.pkl")
-    with open(path, 'wb') as file:
+    path = os.path.join(args.output, f"textboxes_{args.retriever}.pkl")
+    with open(path, 'wb+') as file:
         pkl.dump(bboxes, file)
     
     print(f"Done! Results saved to output file: '{path}'.")

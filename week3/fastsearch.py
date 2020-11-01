@@ -348,12 +348,12 @@ def parse_args(args=sys.argv[1:]):
         help = "weight for the color matching")
     
     parser.add_argument(
-        "--color_descriptor", default="rgb_histogram_1d",
+        "--color_descriptor", default="lab_histogram_3d_blocks",
         help = "descriptor for extracting features from image. DESCRIPTORS AVAILABLE: 1D and 3D Histograms - \
                 gray_historam, rgb_histogram_1d, rgb_histogram_3d, hsv_histogram_1d, hsv_histogram_3d, lab_histogram_1d,\
                 lab_histogram_3d, ycrcb_histogram_1d, ycrcb_histogram_3d. \
                 Block and Pyramidal Histograms - lab_histogram_3d_pyramid and more.\
-                lab_histogram_3d gives us the best results.")
+                lab_histogram_3d_blocks gives us the best results.")
 
     parser.add_argument(
         "--color_metric", default="hellinger",
@@ -384,7 +384,7 @@ def parse_args(args=sys.argv[1:]):
         help = "weight for the color matching")
     
     parser.add_argument(
-        "--texture_descriptor", default="lbp_histogram_blocks",
+        "--texture_descriptor", default="dct_blocks",
         help = "descriptor for extracting textures from image. DESCRIPTORS AVAILABLE: 1D and 3D Histograms - \
                 gray_historam, rgb_histogram_1d, rgb_histogram_3d, hsv_histogram_1d, hsv_histogram_3d, lab_histogram_1d,\
                 lab_histogram_3d, ycrcb_histogram_1d, ycrcb_histogram_3d. \
@@ -392,7 +392,7 @@ def parse_args(args=sys.argv[1:]):
                 lab_histogram_3d gives us the best results.")
 
     parser.add_argument(
-        "--texture_metric", default="hellinger",
+        "--texture_metric", default="correl",
         help = "textures similarity measure to compare images. METRICS AVAILABLE: \
                 cosine, manhattan, euclidean, intersect, kl_div, js_div bhattacharyya, hellinger, chisqr, correl. \
                 hellinger and js_div give the best results.")
@@ -456,8 +456,6 @@ if __name__ == '__main__':
     # indexing the images and ground truth
     museum_list = get_image_path_list(museum_path)
     query_list = get_image_path_list(query_path)
-    # get ground truth
-    ground_truth= get_ground_truth(query_path)
     
     # sanity check
     print(f'number of images in reference dataset is {len(museum_list)}')
@@ -486,20 +484,22 @@ if __name__ == '__main__':
                                         query_params,
                                         k = k)
 
-    
-    map_k = mapk(ground_truth, result_list_of_lists, k=k)
-    print(f'map@{k} for the current run is {map_k}')
-    if k > 1:
-        map_1 = mapk(ground_truth, result_list_of_lists, k=1)
-        print(f'map@{1} for the current run is {map_1}')
 
         
     # extra functions for pickling and visualizing results
     # use -p in cmdline args
     if args.pickle:
         print(f'writing this list to results.pkl \n {result_list_of_lists}')
-        with open('result.pkl', 'wb') as f:
+        with open(os.path.join(args.query_path, 'result.pkl'), 'wb') as f:
             pickle.dump(result_list_of_lists, f)
+    
+    # get ground truth
+    ground_truth= get_ground_truth(query_path)
+    map_k = mapk(ground_truth, result_list_of_lists, k=k)
+    print(f'map@{k} for the current run is {map_k}')
+    if k > 1:
+        map_1 = mapk(ground_truth, result_list_of_lists, k=1)
+        print(f'map@{1} for the current run is {map_1}')
 
     # use -v in cmdline args
     if args.plot:

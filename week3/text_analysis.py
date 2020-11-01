@@ -15,6 +15,7 @@ from math import exp
 
 # BEGIN ------ TEXT RETRIEVAL
 
+
 def clean_text(text:str) -> str:
     if text is None:
         return None
@@ -23,7 +24,7 @@ def clean_text(text:str) -> str:
     return text.lower()
     
 
-def extract_text_tesseract(image:np.ndarray) -> np.ndarray:
+def extract_text_tesseract(image:np.ndarray, return_as_is=False) -> np.ndarray:
     """
     Extract 3D histogram from BGR image color space
     
@@ -39,17 +40,20 @@ def extract_text_tesseract(image:np.ndarray) -> np.ndarray:
 
     # PREPROCESSING
     # Upsampling
-    image = cv2.resize(image, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    image = cv2.resize(image, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
     # To grayscale
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     # Denoising
-    image = cv2.GaussianBlur(image , (3, 3), 0) 
+    image = cv2.GaussianBlur(image , (5, 5), 0) 
     # Binarization
     (thresh, image) = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY ) 
 
     #Tesseract Prediction
     predicted_text = pytesseract.image_to_string(image, config = '--psm 7 -c tessedit_char_whitelist= abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')
 
+    if return_as_is:
+        return predicted_text
+    
     predicted_text = clean_text(predicted_text)
 
     #Remove Digits

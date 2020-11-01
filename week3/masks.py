@@ -9,6 +9,7 @@ import pandas as pd
 import argparse
 import time
 from evaluation import evaluate_mask
+import multiprocessing.dummy as mp
 
 
 def evaluate_mask_retriever(query_db_path: str, retriever: str, *, output: str = None):
@@ -46,11 +47,19 @@ def evaluate_mask_retriever(query_db_path: str, retriever: str, *, output: str =
     masks = [cv2.imread(os.path.join(query_db_path, f"{i:05d}.png")) for i in range(db_count)]
     
     # We generate the masks and compare it with the GT mask, computing several metrics
-    generated_masks = [extract_mask(images[i], retriever) for i in range(db_count)]
-    if output is not None:
+    def to_do(img, retriever, i):
+        path = os.path.join(output, f"{i:05d}.png")
+        if os.path.exists(path):
+            return cv2.imread(path, 0).astype(np.uint8)
+        m = extract_mask(img, retriever)
+        if output is not None:
+            cv2.imwrite(path, m * 255)
+        return m
+    generated_masks = [to_do(images[i], retriever, i) for i in range(db_count)]
+    #if output is not None:
         # we save all generated masks
-        for i in range(db_count):
-            cv2.imwrite(os.path.join(output, f"{i:05d}.png"), generated_masks[i] * 255)
+    #    for i in range(db_count):
+    #        cv2.imwrite(os.path.join(output, f"{i:05d}.png"), generated_masks[i] * 255)
 
     print(f"[INFO] Masks successfully stored in '{output}'")
     try:
