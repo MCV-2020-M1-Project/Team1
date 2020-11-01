@@ -330,6 +330,24 @@ def lbp_histogram(image:np.ndarray, points:int=4, radius:float=1.0, bins:int=8, 
     hist = cv2.normalize(hist, hist)
     return hist.flatten()
 
+def dct_coefficients(image:np.ndarray, bins:int=8, mask:np.ndarray=None, num_coeff:int=4) -> np.ndarray:
+    # image --> grayscale --> DCT --> get top N coefficients using zig-zag scan
+    """
+    Extract DCT coefficients from image. This descriptor will be clubbed with a block descriptor
+    """    
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+    if mask is not None:
+        image = cv2.bitwise_and(image, image, mask=mask)
+        
+    block_dct = cv2.dct(np.float32(image)/255.0)
+
+    def _compute_zig_zag(a):
+        return np.concatenate([np.diagonal(a[::-1,:], k)[::(2*(k % 2)-1)] for k in range(1-a.shape[0], a.shape[0])])
+    
+    features = _compute_zig_zag(block_dct[:6,:6])[:num_coeff]
+    return features
+
 DESCRIPTORS = {
     "gray_histogram":gray_historam,
     "rgb_histogram_1d":rgb_histogram_1d,
@@ -347,7 +365,8 @@ DESCRIPTORS = {
     }
 
 TEXTURES = {
-    "lbp_histogram_blocks": partial(block_descriptor, descriptor_func=lbp_histogram, num_blocks = 8)
+    "lbp_histogram_blocks": partial(block_descriptor, descriptor_func=lbp_histogram, num_blocks = 8),
+    "dct_blocks": partial(block_descriptor, descriptor_func=dct_coefficients, num_blocks = 8)
     }
 
 def extract_features(image:np.ndarray, descriptor:str, bins:int, mask:np.ndarray=None) -> np.ndarray:
@@ -404,5 +423,5 @@ if __name__ == '__main__':
         print(f'descriptor: {key}, feature_length = {extract_features(img, descriptor=key, bins=bins).shape}')
 
     print('TEXTURE DESCRIPTORS')
-    for key,bins in zip(TEXTURES,[8]):
+    for key,bins in zip(TEXTURES,[8,8]):
         print(f'descriptor: {key}, feature_length = {extract_textures(img, descriptor=key, bins=bins).shape}')
