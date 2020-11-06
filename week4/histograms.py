@@ -377,12 +377,7 @@ def dct_coefficients(image:np.ndarray, bins:int=8, mask:np.ndarray=None, num_coe
     return features
 
 def hog_(image:np.ndarray, bins:int=8, ppc:int = 16, cpb:int=3, mask:np.ndarray=None) -> np.ndarray:
-    
-    if mask is not None:
-        x,y,w,h = cv2.boundingRect(mask)
-        image = image[x:x+w,y:y+h]
     image = cv2.resize(image, (256, 256), interpolation=cv2.INTER_AREA)
-
     return np.float32(hog(image, orientations=9, pixels_per_cell=(ppc, ppc), cells_per_block=(cpb, cpb),
             block_norm='L2-Hys', visualize=False, transform_sqrt=False, feature_vector=True,
             multichannel=True))
