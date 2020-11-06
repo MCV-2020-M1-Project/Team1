@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import os
 from functools import partial
-from skimage.feature import local_binary_pattern
+from skimage.feature import local_binary_pattern, hog
 import multiprocessing.dummy as mp
 
 OPENCV_COLOR_SPACES = {
@@ -291,7 +291,7 @@ def pyramid_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:
         features.extend(block_descriptor(image, descriptor_func, bins, mask, num_blocks))
     return np.stack(features).flatten()  
 
-def lbp_histogram(image:np.ndarray, points:int=24, radius:float=3.0, bins:int=8, mask:np.ndarray=None) -> np.ndarray:
+def lbp_histogram_uniform(image:np.ndarray, points:int=8, radius:float=2.0, bins:int=8, mask:np.ndarray=None) -> np.ndarray:
     """
     Extract LBP descriptors after dividing image in non-overlapping blocks,
     computing histograms for each block and then concatenating them
@@ -316,17 +316,35 @@ def lbp_histogram(image:np.ndarray, points:int=24, radius:float=3.0, bins:int=8,
          max: 9.0, min: 0.0, unique_values: 10
         For the method NRI_UNIFORM: 
          max: 58.0, min: 0.0, unique_values: 59
-        
-        'default','ror','nri_uniform' methods are not super scalable 
-         and hence were not considered in the final
-         implementation.
     """    
     # image --> grayscale --> lbp --> histogram
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     image = (local_binary_pattern(image, points, radius, method="uniform")).astype(np.uint8)
-
     bins = points + 2
     hist = cv2.calcHist([image],[0], mask, [bins], [0, bins])
+    hist = cv2.normalize(hist, hist)
+    return hist.flatten()
+
+def lbp_histogram_default(image:np.ndarray, points:int=8, radius:float=2.0, bins:int=16, mask:np.ndarray=None) -> np.ndarray:
+    """
+    Extract LBP descriptors after dividing image in non-overlapping blocks,
+    computing histograms for each block and then concatenating them
+
+    Args:
+        image: (H x W x C) 3D BGR image array of type np.uint8
+        points: number of circularly symmetric neighbour set points (quantization of the angular space)
+        radius: radius of circle (spatial resolution of the operator)
+        bins: number of bins to use for histogram
+        mask: check _descriptor(first function in file)
+
+    Returns:
+        Histogram features flattened into a 
+        1D array of type np.float32
+    """
+    # image --> grayscale --> lbp --> histogram
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)    
+    image = (local_binary_pattern(image, points, radius, method="default")).astype(np.uint8)
+    hist = cv2.calcHist([image],[0], mask, [bins], [0, 256])
     hist = cv2.normalize(hist, hist)
     return hist.flatten()
 
@@ -358,6 +376,17 @@ def dct_coefficients(image:np.ndarray, bins:int=8, mask:np.ndarray=None, num_coe
     features = _compute_zig_zag(block_dct[:6,:6])[:num_coeff]
     return features
 
+def hog_(image:np.ndarray, bins:int=8, ppc:int = 16, cpb:int=3, mask:np.ndarray=None) -> np.ndarray:
+    
+    if mask is not None:
+        x,y,w,h = cv2.boundingRect(mask)
+        image = image[x:x+w,y:y+h]
+    image = cv2.resize(image, (256, 256), interpolation=cv2.INTER_AREA)
+
+    return np.float32(hog(image, orientations=9, pixels_per_cell=(ppc, ppc), cells_per_block=(cpb, cpb),
+            block_norm='L2-Hys', visualize=False, transform_sqrt=False, feature_vector=True,
+            multichannel=True))
+
 DESCRIPTORS = {
     "gray_histogram":gray_historam,
     "rgb_histogram_1d":rgb_histogram_1d,
@@ -375,8 +404,9 @@ DESCRIPTORS = {
     }
 
 TEXTURES = {
-    "lbp_histogram_blocks": partial(block_descriptor, descriptor_func=lbp_histogram, num_blocks = 8),
-    "dct_blocks": partial(block_descriptor, descriptor_func=dct_coefficients, num_blocks = 8)
+    "lbp_histogram_blocks": partial(block_descriptor, descriptor_func=lbp_histogram_default, num_blocks = 8),
+    "dct_blocks": partial(block_descriptor, descriptor_func=dct_coefficients, num_blocks = 8),
+    "hog":hog_
     }
 
 def extract_features(image:np.ndarray, descriptor:str, bins:int, mask:np.ndarray=None) -> np.ndarray:
@@ -433,5 +463,5 @@ if __name__ == '__main__':
         print(f'descriptor: {key}, feature_length = {extract_features(img, descriptor=key, bins=bins).shape}')
 
     print('TEXTURE DESCRIPTORS')
-    for key,bins in zip(TEXTURES,[8,8]):
+    for key,bins in zip(TEXTURES,[8,,16]):
         print(f'descriptor: {key}, feature_length = {extract_textures(img, descriptor=key, bins=bins).shape}')
