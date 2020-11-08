@@ -241,7 +241,11 @@ def search_batch(museum_list:List[Path], query_list:List[Path], mask_list:List[P
 
         # descriptors extraction
         t0 = time.time()
-        query_descriptors = p.map(lambda query: [extract_desc_func(img, extract_kp_func(img)) for (img, m) in query], queries)
+        def only_painting(img, m):
+            img = img.copy()
+            img[m == 0] = 0
+            return img
+        query_descriptors = p.map(lambda query: [extract_desc_func(img, extract_kp_func(only_painting(img, m))) for (img, m) in query], queries)
         print(f"[INFO] Query descriptors extracted: {time.time()-t0}s.")
 
         def desc_gallery(path):
