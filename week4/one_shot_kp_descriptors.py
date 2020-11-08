@@ -31,11 +31,11 @@ def root_sift_descriptors(image, mask, eps=1e-7):
 
 def orb_descriptors(image, mask):
     gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    gray_img = cv2.resize(gray_img, (256, 256), interpolation=cv2.INTER_AREA)
-    if mask is not None:
-        mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_AREA)
+    #gray_img = cv2.resize(gray_img, (256, 256), interpolation=cv2.INTER_AREA)
+    #if mask is not None:
+    #    mask = cv2.resize(mask, (256, 256), interpolation=cv2.INTER_AREA)
 
-    return cv2.ORB_create(WTA_K=4).detectAndCompute(gray_img, mask)[1]
+    return cv2.ORB_create(nfeatures=1200, WTA_K=2).detectAndCompute(gray_img, mask)[1]
 
 
 def daisy_descriptors(image, mask):

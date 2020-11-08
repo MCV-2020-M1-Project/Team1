@@ -9,7 +9,7 @@ def lowe_filter(matches, k=0.7):
     return filtered
 
 
-def keypoints_based_similarity(matches, min_matches=5, max_dist=800):
+def keypoints_based_similarity(matches, min_matches=6, max_dist=800):
     m = len(matches)
     # we compute the mean of distances among all keypoint matches
     d = np.mean([match.distance for match in matches]) if m > 0 else np.inf

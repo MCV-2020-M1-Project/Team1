@@ -272,8 +272,9 @@ def search_batch(museum_list:List[Path], query_list:List[Path], mask_list:List[P
                 if dists[nearest_indices[0]] == 0:
                     # no query match => -1
                     qlist.append([-1,])
-                result_list = [index for index in nearest_indices]
-                qlist.append(result_list)
+                else:
+                    result_list = [index for index in nearest_indices]
+                    qlist.append(result_list)
             result_list_of_lists.append(qlist)
             
         print(f"[INFO] Results computed: {time.time()-t0}s.")
