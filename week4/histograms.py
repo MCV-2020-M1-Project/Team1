@@ -458,5 +458,5 @@ if __name__ == '__main__':
         print(f'descriptor: {key}, feature_length = {extract_features(img, descriptor=key, bins=bins).shape}')
 
     print('TEXTURE DESCRIPTORS')
-    for key,bins in zip(TEXTURES,[8,,16]):
+    for key,bins in zip(TEXTURES,[8,16]):
         print(f'descriptor: {key}, feature_length = {extract_textures(img, descriptor=key, bins=bins).shape}')

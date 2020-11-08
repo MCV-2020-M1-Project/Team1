@@ -194,6 +194,8 @@ def extract_textbox(orig_img, mask=None):
     else:
         masks = extract_paintings_from_mask(mask)
         
+    if masks is None:
+        return [[0,0,0,0]]
     # we try to extract one textbox per painting
     for m in masks:
         img = orig_img.copy()

@@ -318,6 +318,8 @@ def extract_paintings_from_mask(mask:np.ndarray):
         first_pixel = np.min(np.where(m != 0)[1])
         to_return.append((m, first_pixel))
     both = list(zip(*sorted(to_return, key=lambda t: t[1])))
+    if len(both) == 0:
+        return None
     return both[0]
 
 def generate_text_mask(shape, textboxes):
