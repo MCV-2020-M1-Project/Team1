@@ -1,0 +1,15 @@
+psnr_non_augmented_to_augmented | psnr_non_augmented_to_denoised | psnr_delta | denoised_sigma | sigma_delta | denoise_method
+22.467|	29.891|	-7.424|	1.719|	8.371|	median_blur
+23.571|	26.354|	-2.784|	1.554|	6.925|	tv_chambolle_denoise
+23.787|	30.645|	-6.858|	1.289|	6.692|	tv_chambolle_denoise
+23.186|	27.956|	-4.770|	1.629|	7.064|	tv_chambolle_denoise
+23.330|	22.076|	1.254|	2.996|	6.578|	box_filter_denoise
+24.522|	27.472|	-2.950|	0.959|	6.224|	tv_chambolle_denoise
+23.958|	28.846|	-4.888|	1.288|	6.245|	tv_chambolle_denoise
+24.332|	21.435|	2.897|	1.367|	6.094|	tv_chambolle_denoise
+24.217|	30.080|	-5.863|	0.938|	6.645|	tv_chambolle_denoise
+24.403|	24.781|	-0.377|	1.508|	5.805|	tv_chambolle_denoise
+23.953|	27.755|	-3.802|	1.235|	6.812|	tv_chambolle_denoise
+23.701|	25.668|	-1.966|	1.626|	9.869|	tv_chambolle_denoise
+23.079|	22.238|	0.842|	1.932|	12.228|	tv_chambolle_denoise
+22.669|	26.388|	-3.719|	1.940|	7.845|	tv_chambolle_denoise

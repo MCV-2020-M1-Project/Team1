@@ -2,7 +2,10 @@ __pycache__/
 *.py[cod]
 .vscode
 resources/
-week3/outputs/partials/
+week3/outputs/partials_using_psnr
+week3/outputs/partials_using_sigma
+week3/outputs/results_using_psnr
+week3/outputs/results_using_sigma
 
 # Jupyter Notebook
 .ipynb_checkpoints
