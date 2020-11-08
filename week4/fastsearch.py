@@ -193,7 +193,7 @@ def _extract_image_and_mask_from_path(img_path, mask_path, textboxes, multiple):
     if multiple:
         masks = extract_paintings_from_mask(mask)
         if masks is None or len(masks) == 0:
-            return [(img, np.ones_like(img).astype(np.uint8)), ]
+            return [(img, np.ones(img.shape[:2]).astype(np.uint8)), ]
         return [(img, ((text_mask != 0) & (m != 0)).astype(np.uint8)) for m in masks]
     return [(img, ((text_mask != 0) & (mask != 0)).astype(np.uint8)), ]
 

@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-def lowe_filter(matches, k=0.6):
+def lowe_filter(matches, k=0.7):
     filtered = []
     for m, n in matches:
         if m.distance < k * n.distance:
@@ -50,6 +50,6 @@ LOCAL_DESCRIPTORS = {
 }
 
 def match_keypoints_descriptors(u, v, method="flann", distance="l2"):
-    if u is None or v is None or len(u) == 0 or len(v) == 0:
+    if u is None or v is None or len(u) <= 1 or len(v) <= 1:
         return 0.0
     return LOCAL_DESCRIPTORS[method](u.astype(np.float32), v.astype(np.float32), DISTANCE_METRICS[distance])

@@ -18,7 +18,7 @@ from masks import extract_paintings_from_mask, generate_text_mask
 from text_analysis import extract_text, compare_texts
 from textboxes import generate_text_mask
 from keypoints import extract_keypoints
-from local_descriptors import extract_local_descriptors
+from one_shot_kp_descriptors import extract_local_descriptors
 from kp_matching import match_keypoints_descriptors
 
 def get_image_path_list(data_path:str, extension:str='jpg') -> List[Path]:
@@ -197,7 +197,7 @@ def _extract_image_and_mask_from_path(img_path, mask_path, textboxes, multiple):
     if multiple:
         masks = extract_paintings_from_mask(mask)
         if masks is None or len(masks) == 0:
-            return [(img, np.ones_like(img).astype(np.uint8)), ]
+            return [(img, np.ones(img.shape[:2]).astype(np.uint8)), ]
         return [(img, ((text_mask != 0) & (m != 0)).astype(np.uint8)) for m in masks]
     return [(img, ((text_mask != 0) & (mask != 0)).astype(np.uint8)), ]
 
@@ -236,7 +236,7 @@ def search_batch(museum_list:List[Path], query_list:List[Path], mask_list:List[P
                              for q in range(len(query_list))])
         
 
-        extract_kp_func = partial(extract_keypoints, method=query_params["keypoints"]["extractor"])
+        #extract_kp_func = partial(extract_keypoints, method=query_params["keypoints"]["extractor"])
         extract_desc_func = partial(extract_local_descriptors, method=query_params["keypoints"]["descriptor"])
 
         # descriptors extraction
@@ -245,14 +245,16 @@ def search_batch(museum_list:List[Path], query_list:List[Path], mask_list:List[P
             img = img.copy()
             img[m == 0] = 0
             return img
-        query_descriptors = p.map(lambda query: [extract_desc_func(img, extract_kp_func(only_painting(img, m))) for (img, m) in query], queries)
+        #query_descriptors = p.map(lambda query: [extract_desc_func(img, extract_kp_func(only_painting(img, m))) for (img, m) in query], queries)
+        query_descriptors = p.map(lambda query: [extract_desc_func(img, m) for (img, m) in query], queries)
         print(f"[INFO] Query descriptors extracted: {time.time()-t0}s.")
 
         def desc_gallery(path):
             img = path2img(path)
             return extract_desc_func(img, extract_kp_func(img))
         t0 = time.time()
-        image_descriptors = p.map(lambda path: desc_gallery(path), museum_list)
+        #image_descriptors = p.map(lambda path: desc_gallery(path), museum_list)
+        image_descriptors = p.map(lambda path: extract_desc_func(path2img(path), None), museum_list)
         print(f"[INFO] Gallery descriptors extracted: {time.time()-t0}s.")
         
         t0 = time.time()
@@ -317,12 +319,8 @@ def parse_args(args=sys.argv[1:]):
 
     # KEYPOINTS
     parser.add_argument(
-        "--extractor","-txw", type=str, default="surf",
-        help = "method used to extract keypoints. AVAILABLE={sift, surf, orb, harris_corner_detector, harris_corner_subpixel, hl, dog, log, dog}")
-    
-    parser.add_argument(
         "--descriptor", type=str, default="surf",
-        help = "descriptor used to extract keypoint features. AVAILABLE={sift, surf, root_sift, orb, daisy, hog, lbp}")
+        help = "descriptor used to extract keypoint features. AVAILABLE={sift, surf, root_sift, orb, daisy, brisk}")
     
     parser.add_argument(
         "--matching", type=str, default="bruteforce",
@@ -348,7 +346,6 @@ def from_args_to_query_params(args):
             "multiple": args.masks_multiple
         }
     ordered_args["keypoints"] = {
-        "extractor": args.extractor,
         "descriptor": args.descriptor,
         "matching": args.matching,
     }
