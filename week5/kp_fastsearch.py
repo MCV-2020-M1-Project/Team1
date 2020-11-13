@@ -17,8 +17,7 @@ from evaluation import mapk
 from masks import extract_paintings_from_mask, generate_text_mask
 from text_analysis import extract_text, compare_texts
 from textboxes import generate_text_mask
-from keypoints import extract_keypoints
-from one_shot_kp_descriptors import extract_local_descriptors
+from kp_descriptors import extract_local_descriptors
 from kp_matching import match_keypoints_descriptors
 
 def get_image_path_list(data_path:str, extension:str='jpg') -> List[Path]:
