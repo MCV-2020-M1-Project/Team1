@@ -315,8 +315,14 @@ def extract_paintings_from_mask(mask:np.ndarray):
     num_labels, labels = cv2.connectedComponents(mask.astype(np.uint8))
     for lab in range(1, num_labels):      
         m = (labels == lab).astype(np.uint8)
-        first_pixel = np.min(np.where(m != 0)[1])
-        to_return.append((m, first_pixel))
+        # left to right and top to bottom
+        aux = np.where(m != 0)
+        mid_pixel_col = (np.max(aux[1]) + np.min(aux[1])) / 2
+        mid_pixel_row = (np.max(aux[0]) + np.min(aux[0])) / 2
+        
+        # we give more importance to row than col, to first order by row and then by row.
+        to_return.append((m, mid_pixel_row + 10 * mid_pixel_col))
+        
     both = list(zip(*sorted(to_return, key=lambda t: t[1])))
     if len(both) == 0:
         return None
