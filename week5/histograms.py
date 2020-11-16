@@ -113,7 +113,7 @@ def hsv_histogram_1d(image:np.ndarray, bins:int=256, mask:np.ndarray=None) -> np
     features = []
     # the brightness channel doesn't get many bins as almost all of the features 
     # were clicked in similar lighting/brightness
-    for channel, bin_val, max_val in zip(channels,[int(180/(256/bins)), bins, int(bins/8)],[180,256,256]):
+    for channel, bin_val, max_val in zip(channels,[16, 1, 1],[180,256,256]):
         hist = cv2.calcHist([channel],[0], mask, [bin_val], [0, max_val])
         hist = cv2.normalize(hist, hist)
         features.extend(hist)
@@ -292,31 +292,7 @@ def pyramid_descriptor(image:np.ndarray, descriptor_func=rgb_histogram_1d, bins:
     return np.stack(features).flatten()  
 
 def lbp_histogram_uniform(image:np.ndarray, points:int=8, radius:float=2.0, bins:int=8, mask:np.ndarray=None) -> np.ndarray:
-    """
-    Extract LBP descriptors after dividing image in non-overlapping blocks,
-    computing histograms for each block and then concatenating them
-
-    Args:
-        image: (H x W x C) 3D BGR image array of type np.uint8
-        points: number of circularly symmetric neighbour set points (quantization of the angular space)
-        radius: radius of circle (spatial resolution of the operator)
-        bins: number of bins to use for histogram
-        mask: check _descriptor(first function in file)
-
-    Returns:
-        Histogram features flattened into a 
-        1D array of type np.float32
         
-    EXTRA DOCUMENTATION FOR PERSONAL USE
-        For the method DEFAULT and points 8: 
-         max: 255.0, min: 0.0, unique_values: 212
-        For the method ROR: 
-         max: 255.0, min: 0.0, unique_values: 34
-        For the method UNIFORM: 
-         max: 9.0, min: 0.0, unique_values: 10
-        For the method NRI_UNIFORM: 
-         max: 58.0, min: 0.0, unique_values: 59
-    """    
     # image --> grayscale --> lbp --> histogram
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     image = (local_binary_pattern(image, points, radius, method="uniform")).astype(np.uint8)
@@ -326,21 +302,6 @@ def lbp_histogram_uniform(image:np.ndarray, points:int=8, radius:float=2.0, bins
     return hist.flatten()
 
 def lbp_histogram_default(image:np.ndarray, points:int=8, radius:float=2.0, bins:int=16, mask:np.ndarray=None) -> np.ndarray:
-    """
-    Extract LBP descriptors after dividing image in non-overlapping blocks,
-    computing histograms for each block and then concatenating them
-
-    Args:
-        image: (H x W x C) 3D BGR image array of type np.uint8
-        points: number of circularly symmetric neighbour set points (quantization of the angular space)
-        radius: radius of circle (spatial resolution of the operator)
-        bins: number of bins to use for histogram
-        mask: check _descriptor(first function in file)
-
-    Returns:
-        Histogram features flattened into a 
-        1D array of type np.float32
-    """
     # image --> grayscale --> lbp --> histogram
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)    
     image = (local_binary_pattern(image, points, radius, method="default")).astype(np.uint8)
@@ -352,16 +313,6 @@ def dct_coefficients(image:np.ndarray, bins:int=8, mask:np.ndarray=None, num_coe
     # image --> grayscale --> DCT --> get top N coefficients using zig-zag scan
     """
     Extract DCT coefficients from image. This descriptor will be clubbed with a block descriptor
-
-    Args:
-        image: (H x W x C) 3D BGR image array of type np.uint8
-        num_coeff: number of coefficents in dct_block to use through zig-zag scan
-        bins: N.A. here, but present to make our api compatible with the function
-        mask: check _descriptor(first function in file)
-
-    Returns:
-        DCT features flattened into a 
-        1D array of type np.float32
     """    
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
@@ -376,7 +327,26 @@ def dct_coefficients(image:np.ndarray, bins:int=8, mask:np.ndarray=None, num_coe
     features = _compute_zig_zag(block_dct[:6,:6])[:num_coeff]
     return features
 
+def dct_full(image:np.ndarray, bins:int=8, mask:np.ndarray=None, num_coeff:int=16) -> np.ndarray:
+    # image --> grayscale --> DCT --> get top N coefficients using zig-zag scan
+    """
+    Extract DCT coefficients from image. This descriptor will be clubbed with a block descriptor
+    """    
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+    if mask is not None:
+        image = cv2.bitwise_and(image, image, mask=mask)
+        
+    block_dct = cv2.dct(np.float32(image)/255.0)
+
+    def _compute_zig_zag(a):
+        return np.concatenate([np.diagonal(a[::-1,:], k)[::(2*(k % 2)-1)] for k in range(1-a.shape[0], a.shape[0])])
+    
+    features = _compute_zig_zag(block_dct[:8,:8])[:num_coeff]
+    return features
+
 def hog_(image:np.ndarray, bins:int=8, ppc:int = 16, cpb:int=3, mask:np.ndarray=None) -> np.ndarray:
+        
     image = cv2.resize(image, (256, 256), interpolation=cv2.INTER_AREA)
     return np.float32(hog(image, orientations=9, pixels_per_cell=(ppc, ppc), cells_per_block=(cpb, cpb),
             block_norm='L2-Hys', visualize=False, transform_sqrt=False, feature_vector=True,
@@ -392,16 +362,18 @@ DESCRIPTORS = {
     "lab_histogram_3d":lab_histogram_3d,
     "ycrcb_histogram_1d":ycrcb_histogram_1d,
     "ycrcb_histogram_3d":ycrcb_histogram_3d,
-    "rgb_histogram_3d_blocks": partial(block_descriptor, descriptor_func=rgb_histogram_3d, num_blocks = 8),
-    "lab_histogram_3d_blocks": partial(block_descriptor, descriptor_func=lab_histogram_3d, num_blocks = 8),
+    "rgb_histogram_3d_blocks": partial(block_descriptor, descriptor_func=rgb_histogram_3d, num_blocks = 2),
+    "lab_histogram_3d_blocks": partial(block_descriptor, descriptor_func=lab_histogram_3d, num_blocks = 1),
     "rgb_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=rgb_histogram_3d, max_level = 1),
-    "lab_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=lab_histogram_3d, max_level = 1)
+    "lab_histogram_3d_pyramid": partial(pyramid_descriptor, descriptor_func=lab_histogram_3d, max_level = 1),
+    "lbp_histogram_blocks": partial(block_descriptor, descriptor_func=lbp_histogram_uniform, num_blocks = 16),
+    "dct_blocks": partial(block_descriptor, descriptor_func=dct_coefficients, num_blocks = 8),
+    "hog":hog_,
+    "dct_full":dct_full
     }
 
 TEXTURES = {
-    "lbp_histogram_blocks": partial(block_descriptor, descriptor_func=lbp_histogram_default, num_blocks = 8),
-    "dct_blocks": partial(block_descriptor, descriptor_func=dct_coefficients, num_blocks = 8),
-    "hog":hog_
+    "lbp_histogram_blocks": partial(block_descriptor, descriptor_func=lbp_histogram_default, num_blocks = 8)
     }
 
 def extract_features(image:np.ndarray, descriptor:str, bins:int, mask:np.ndarray=None) -> np.ndarray:
@@ -454,9 +426,9 @@ if __name__ == '__main__':
     img = cv2.imread(os.path.join('images','barca.png'))
     print(f'image shape: {img.shape}')
     print('COLOR DESCRIPTORS')
-    for key,bins in zip(DESCRIPTORS,[256,256,8,256,8,256,8,256,8,8,8,8,8]):
+    for key,bins in zip(DESCRIPTORS,[256,256,8,256,8,256,8,256,8,8,8,8,8,8,8,8]):
         print(f'descriptor: {key}, feature_length = {extract_features(img, descriptor=key, bins=bins).shape}')
 
     print('TEXTURE DESCRIPTORS')
-    for key,bins in zip(TEXTURES,[8,16]):
+    for key,bins in zip(TEXTURES,[8]):
         print(f'descriptor: {key}, feature_length = {extract_textures(img, descriptor=key, bins=bins).shape}')
