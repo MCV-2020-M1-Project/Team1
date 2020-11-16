@@ -244,10 +244,11 @@ TEXTBOX_RETRIEVERS = {
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generates textboxes from images (using masks if available). Output file will be stored in the execution path if unspecified.")
     parser.add_argument('--query', help="Path to query folder.", type=str)
+    #parser.add_argument('--query', help="Path to query folder.", type=str)
     parser.add_argument('--use_masks', action="store_true", help="If masks are to be used.")
-    parser.add_argument('--masks', help="Path where masks are located. If empty, masks will be retrieved from query folder.", type=str)
+    #parser.add_argument('--masks', help="Path where masks are located. If empty, masks will be retrieved from query folder.", type=str)
     parser.add_argument('--retriever', help="Textbox retriever to use.", type=str, choices=list(TEXTBOX_RETRIEVERS.keys()),)
-    parser.add_argument('--output', help="Folder where output file 'text_boxes_{VERSION}.pkl' file will be stored.", type=str)
+    #parser.add_argument('--output', help="Folder where output file 'text_boxes_{VERSION}.pkl' file will be stored.", type=str)
     args = parser.parse_args()
 
 
@@ -255,17 +256,18 @@ if __name__ == '__main__':
         print(f"[ERROR] Query folder '{args.query}' does not exist.")
         exit()
         
-    masks_folder = args.masks
-    if args.masks and not os.path.exists(args.masks):
-        print(f"[ERROR] Masks folder '{args.masks}' does not exist.")
+    masks_folder = args.query
+    if masks_folder and not os.path.exists(masks_folder):
+        print(f"[ERROR] Masks folder '{masks_folder}' does not exist.")
         exit()
     elif args.use_masks:
         print("[WARNING] Masks path unspecified... The masks inside query folder will be used...")
         masks_folder = args.query
         
-    if args.output  and not os.path.exists(args.output):
-        print(f"Creating output folder '{args.output}'...")
-        os.mkdir(args.output)
+    output_folder = args.query
+    if output_folder  and not os.path.exists(output_folder):
+        print(f"Creating output folder '{output_folder}'...")
+        os.mkdir(output_folder)
 
 
     print(f"Evaluating with textbox retriever >{args.retriever}<...")
@@ -292,7 +294,7 @@ if __name__ == '__main__':
     for i in tqdm(range(len(masks))):
         bboxes.append(TEXTBOX_RETRIEVERS[args.retriever](images[i], mask=masks[i]))
         
-    path = os.path.join(args.output, f"textboxes_{args.retriever}.pkl")
+    path = os.path.join(output_folder, f"textboxes_{args.retriever}.pkl")
     with open(path, 'wb+') as file:
         pkl.dump(bboxes, file)
     
