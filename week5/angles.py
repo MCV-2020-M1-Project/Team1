@@ -54,7 +54,8 @@ def rotate_image(img, angle=0, mask=False):
 
     
 def extract_angle(img):
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    if len(img.shape) == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     # First we find very long lines in the image
     dst = cv2.Canny(img, 50, 200)
 

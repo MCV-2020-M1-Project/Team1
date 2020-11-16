@@ -340,6 +340,9 @@ def generate_text_mask(shape, textboxes):
 
 
 
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generates, evaluates and stores (optional, see --output) masks generated from the given query dataset. ")
     parser.add_argument('--query', help="Path to query dataset.", type=str)

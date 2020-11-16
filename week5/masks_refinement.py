@@ -216,7 +216,7 @@ if __name__ == '__main__':
 
     # We load the images and their associated masks
     masks = [cv2.imread(os.path.join(args.masks, f"{i:05d}.png"), 0) for i in range(db_count)]
-    images = [cv2.imread(os.path.join(args.masks, f"{i:05d}.jpg"), 0) for i in range(db_count)]
+    images = [cv2.imread(os.path.join(args.masks, f"{i:05d}.jpg"), 1) for i in range(db_count)]
     processed_masks = []
     metadata_list = []
     generate_pickle = True
