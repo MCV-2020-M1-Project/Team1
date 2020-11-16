@@ -1,4 +1,4 @@
-# Week 3 API Usage
+# Week 5 API Usage
 
 ## Content Based Image Retrieval
 
